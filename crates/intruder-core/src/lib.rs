@@ -282,7 +282,9 @@ mod tests {
     #[test]
     fn campaign_cancellation_is_scoped() -> Result<(), CoreError> {
         let mut state = KillSwitchState::default();
-        state.cancelled_campaigns.insert("deep-assessment".to_owned());
+        state
+            .cancelled_campaigns
+            .insert("deep-assessment".to_owned());
 
         assert!(matches!(
             state.authorize("command-center-staging", "deep-assessment"),
