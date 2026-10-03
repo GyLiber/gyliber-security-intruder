@@ -31,8 +31,8 @@ jobs:
         with:
           cache: true
 
-      - name: Resolve dependency graph
-        run: cargo generate-lockfile
+      - name: Verify committed dependency graph
+        run: cargo metadata --locked --format-version 1 --no-deps > /dev/null
 
       - name: Audit Rust dependencies
         uses: actions-rust-lang/audit@72c09e02f132669d52284a3323acdb503cfc1a24

@@ -29,8 +29,8 @@ jobs:
         with:
           cache: true
 
-      - name: Resolve locked dependency graph
-        run: cargo generate-lockfile
+      - name: Verify committed dependency graph
+        run: cargo metadata --locked --format-version 1 --no-deps > /dev/null
 
       - name: Check formatting
         run: cargo fmt --all -- --check
@@ -44,11 +44,3 @@ jobs:
       - name: Test workspace
         run: cargo test --workspace --all-features --locked
 
-      - name: Preserve resolved dependency graph
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: cargo-lock-${{ github.sha }}
-          path: Cargo.lock
-          if-no-files-found: error
-          retention-days: 7
