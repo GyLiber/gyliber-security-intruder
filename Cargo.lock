@@ -640,6 +640,15 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "intruder-core",
+ "intruder-evidence",
+ "intruder-net",
+ "intruder-policy",
+ "intruder-report",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "url",
 ]
 
 [[package]]
