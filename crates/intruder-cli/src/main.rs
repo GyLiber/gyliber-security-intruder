@@ -232,6 +232,6 @@ mod tests {
         assert_eq!(report.evidence().len(), 1);
         assert_eq!(report.evidence()[0].record().verdict(), Verdict::Fail);
         report.verify()?;
-        join_fixture(server)
+        join_fixture(handle)
     }
 }
