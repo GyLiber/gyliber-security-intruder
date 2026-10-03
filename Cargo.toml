@@ -1,0 +1,39 @@
+[workspace]
+members = [
+  "crates/intruder-cli",
+  "crates/intruder-core",
+  "crates/intruder-evidence",
+  "crates/intruder-net",
+  "crates/intruder-policy",
+  "crates/intruder-report",
+]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.99"
+authors = ["GyLiber Engineering"]
+repository = "https://github.com/GyLiber/gyliber-security-intruder"
+publish = false
+
+[workspace.dependencies]
+clap = { version = "4.6.7", features = ["derive"] }
+reqwest = { version = "0.13.5", default-features = false, features = ["http2", "json", "rustls"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "2.0.21"
+tokio = { version = "~1.51", features = ["macros", "rt-multi-thread", "time"] }
+tracing = "0.1.44"
+url = { version = "2.5.8", features = ["serde"] }
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_debug_implementations = "warn"
+
+[workspace.lints.clippy]
+all = "warn"
+pedantic = "warn"
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"

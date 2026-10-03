@@ -1,0 +1,17 @@
+[package]
+name = "intruder-policy"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+intruder-core = { path = "../intruder-core" }
+serde.workspace = true
+thiserror.workspace = true
+url.workspace = true
