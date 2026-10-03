@@ -11,9 +11,7 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
+intruder-core = { path = "../intruder-core" }
 intruder-policy = { path = "../intruder-policy" }
 thiserror.workspace = true
 url.workspace = true
-
-[dev-dependencies]
-intruder-core = { path = "../intruder-core" }
