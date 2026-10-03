@@ -40,23 +40,31 @@ impl RunReport {
 
         let mut output = String::new();
         output.push_str("GyLiber Security Intruder Run Report\n");
-        output.push_str(&format!("run_id: {}\n", self.run_id));
-        output.push_str(&format!("evidence_records: {}\n", self.evidence.len()));
+        output.push_str("run_id: ");
+        output.push_str(&self.run_id);
+        output.push('\n');
+        output.push_str("evidence_records: ");
+        output.push_str(&self.evidence.len().to_string());
+        output.push('\n');
 
         for sealed in &self.evidence {
             let record = sealed.record();
             let expectation = expectation_label(record.expected());
             let observation = observation_label(record.observed());
 
-            output.push_str(&format!(
-                "- target={} test={} verdict={} expected={} observed={} sha256={}\n",
-                record.target_id(),
-                record.test_case_id(),
-                record.verdict_label(),
-                expectation,
-                observation,
-                sealed.integrity().digest_hex()
-            ));
+            output.push_str("- target=");
+            output.push_str(record.target_id());
+            output.push_str(" test=");
+            output.push_str(record.test_case_id());
+            output.push_str(" verdict=");
+            output.push_str(record.verdict_label());
+            output.push_str(" expected=");
+            output.push_str(&expectation);
+            output.push_str(" observed=");
+            output.push_str(&observation);
+            output.push_str(" sha256=");
+            output.push_str(sealed.integrity().digest_hex());
+            output.push('\n');
         }
 
         Ok(output)
