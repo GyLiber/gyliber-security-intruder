@@ -158,14 +158,12 @@ fn classify_ipv4(address: Ipv4Addr) -> AddressClass {
     if is_known_metadata_endpoint(IpAddr::V4(address))
         || matches!(
             octets,
-            [0, ..]
-                | [192, 0, 0, ..]
-                | [192, 0, 2, ..]
+            [0 | 224..=255, ..]
+                | [192, 0, 0 | 2, ..]
                 | [192, 88, 99, ..]
                 | [198, 18..=19, ..]
                 | [198, 51, 100, ..]
                 | [203, 0, 113, ..]
-                | [224..=255, ..]
         )
     {
         return AddressClass::Forbidden;
@@ -173,9 +171,8 @@ fn classify_ipv4(address: Ipv4Addr) -> AddressClass {
 
     if matches!(
         octets,
-        [10, ..]
+        [10 | 127, ..]
             | [100, 64..=127, ..]
-            | [127, ..]
             | [169, 254, ..]
             | [172, 16..=31, ..]
             | [192, 168, ..]
