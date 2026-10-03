@@ -13,5 +13,6 @@ workspace = true
 [dependencies]
 intruder-core = { path = "../intruder-core" }
 intruder-policy = { path = "../intruder-policy" }
+reqwest.workspace = true
 thiserror.workspace = true
 url.workspace = true
