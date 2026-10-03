@@ -1,0 +1,14 @@
+/target/
+**/*.rs.bk
+.env
+.env.*
+!.env.example
+.DS_Store
+.idea/
+.vscode/
+evidence/
+reports/private/
+*.pem
+*.key
+*.p12
+*.pfx
