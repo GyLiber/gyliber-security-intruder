@@ -56,7 +56,9 @@ impl SafetyBudget {
     /// Reject obviously unsafe or unusable budget definitions.
     pub fn validate(&self) -> Result<(), CoreError> {
         if self.max_total_requests == 0 {
-            return Err(CoreError::InvalidBudget("max_total_requests must be positive"));
+            return Err(CoreError::InvalidBudget(
+                "max_total_requests must be positive",
+            ));
         }
         if self.max_requests_per_second == 0 {
             return Err(CoreError::InvalidBudget(
@@ -100,7 +102,9 @@ mod tests {
         };
         assert!(matches!(
             budget.validate(),
-            Err(CoreError::InvalidBudget("max_total_requests must be positive"))
+            Err(CoreError::InvalidBudget(
+                "max_total_requests must be positive"
+            ))
         ));
     }
 }
