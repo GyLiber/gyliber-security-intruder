@@ -54,7 +54,7 @@ impl RunReport {
                 "- target={} test={} verdict={} expected={} observed={} sha256={}\n",
                 record.target_id(),
                 record.test_case_id(),
-                verdict_label(record.verdict()),
+                record.verdict_label(),
                 expectation,
                 observation,
                 sealed.integrity().digest_hex()
@@ -72,16 +72,6 @@ impl RunReport {
     #[must_use]
     pub fn evidence(&self) -> &[SealedEvidence] {
         &self.evidence
-    }
-}
-
-fn verdict_label(verdict: intruder_core::Verdict) -> &'static str {
-    match verdict {
-        intruder_core::Verdict::Pass => "PASS",
-        intruder_core::Verdict::Fail => "FAIL",
-        intruder_core::Verdict::NotApplicable => "NOT_APPLICABLE",
-        intruder_core::Verdict::NotTested => "NOT_TESTED",
-        intruder_core::Verdict::NotArmed => "NOT_ARMED",
     }
 }
 

@@ -111,6 +111,17 @@ impl EvidenceRecord {
     }
 
     #[must_use]
+    pub const fn verdict_label(&self) -> &'static str {
+        match self.verdict {
+            Verdict::Pass => "PASS",
+            Verdict::Fail => "FAIL",
+            Verdict::NotApplicable => "NOT_APPLICABLE",
+            Verdict::NotTested => "NOT_TESTED",
+            Verdict::NotArmed => "NOT_ARMED",
+        }
+    }
+
+    #[must_use]
     pub const fn expected(&self) -> &EvidenceExpectation {
         &self.expected
     }
