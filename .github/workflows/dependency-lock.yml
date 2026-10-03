@@ -3,9 +3,12 @@ name: Dependency Lock Bootstrap
 on:
   push:
     branches: ["build/http-transport-lock"]
+    paths:
+      - "crates/intruder-net/Cargo.toml"
+      - ".github/workflows/dependency-lock.yml"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   lock:
@@ -31,10 +34,14 @@ jobs:
       - name: Check workspace against generated graph
         run: cargo check --workspace --all-targets --all-features --locked
 
-      - name: Export generated lockfile
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: http-transport-cargo-lock
-          path: Cargo.lock
-          if-no-files-found: error
-          retention-days: 1
+      - name: Commit generated lockfile
+        run: |
+          if git diff --quiet -- Cargo.lock; then
+            echo "Cargo.lock already matches the dependency graph."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Cargo.lock
+          git commit -m "build: refresh HTTP transport dependency lock"
+          git push
