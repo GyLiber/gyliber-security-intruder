@@ -26,7 +26,7 @@ impl<'a> TargetGate<'a> {
     ///
     /// # Errors
     ///
-    /// Returns TargetGateError when the candidate is outside the enrolled
+    /// Returns `TargetGateError` when the candidate is outside the enrolled
     /// target boundary or the target definition itself is invalid.
     pub fn authorize(&self, candidate: &Url) -> Result<(), TargetGateError> {
         self.target.authorize_url(candidate)?;
@@ -37,7 +37,7 @@ impl<'a> TargetGate<'a> {
     ///
     /// # Errors
     ///
-    /// Returns TargetGateError when the address is outside the enrolled
+    /// Returns `TargetGateError` when the address is outside the enrolled
     /// target's permitted network class.
     pub fn authorize_resolved_ip(&self, address: IpAddr) -> Result<(), TargetGateError> {
         self.target.authorize_resolved_ip(address)?;
@@ -77,7 +77,7 @@ impl<'a> ExecutionGate<'a> {
     ///
     /// # Errors
     ///
-    /// Returns ExecutionGateError when execution is stopped, the URL is outside
+    /// Returns `ExecutionGateError` when execution is stopped, the URL is outside
     /// target policy, or request capacity is exhausted.
     pub fn begin_request(
         &mut self,
@@ -113,7 +113,7 @@ impl RequestPermit<'_> {
     ///
     /// # Errors
     ///
-    /// Returns TargetGateError when DNS resolution yields a destination outside
+    /// Returns `TargetGateError` when DNS resolution yields a destination outside
     /// the target's permitted network class.
     pub fn authorize_resolved_ip(&self, address: IpAddr) -> Result<(), TargetGateError> {
         TargetGate::new(self.target).authorize_resolved_ip(address)
