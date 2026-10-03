@@ -14,3 +14,6 @@ workspace = true
 intruder-policy = { path = "../intruder-policy" }
 thiserror.workspace = true
 url.workspace = true
+
+[dev-dependencies]
+intruder-core = { path = "../intruder-core" }
