@@ -1,8 +1,6 @@
 //! Human and machine-readable reporting contracts.
 
-use intruder_evidence::{
-    EvidenceError, EvidenceExpectation, EvidenceObservation, SealedEvidence,
-};
+use intruder_evidence::{EvidenceError, EvidenceExpectation, EvidenceObservation, SealedEvidence};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -128,10 +126,7 @@ mod tests {
     fn report_preserves_multiple_verdicts() -> Result<(), EvidenceError> {
         let report = RunReport::new(
             "run-0002",
-            vec![
-                sealed(Verdict::Pass, 204)?,
-                sealed(Verdict::Fail, 500)?,
-            ],
+            vec![sealed(Verdict::Pass, 204)?, sealed(Verdict::Fail, 500)?],
         );
 
         assert_eq!(report.evidence().len(), 2);
