@@ -83,6 +83,10 @@ impl<'a> ExecutionGate<'a> {
         &mut self,
         candidate: &Url,
     ) -> Result<RequestPermit<'_>, ExecutionGateError> {
+        if self.budget.budget() != &self.target.budget {
+            return Err(ExecutionGateError::BudgetPolicyMismatch);
+        }
+
         self.kill_switches
             .authorize(&self.target.target_id, self.campaign_id)?;
         TargetGate::new(self.target).authorize(candidate)?;
@@ -146,6 +150,8 @@ pub enum TargetGateError {
 
 #[derive(Debug, Error)]
 pub enum ExecutionGateError {
+    #[error("execution budget does not match the enrolled target policy")]
+    BudgetPolicyMismatch,
     #[error(transparent)]
     Core(#[from] CoreError),
     #[error(transparent)]
@@ -188,6 +194,26 @@ mod tests {
                 .authorize_resolved_ip(address)
                 .is_err()
         );
+        Ok(())
+    }
+
+    #[test]
+    fn execution_gate_rejects_mismatched_budget() -> Result<(), Box<dyn std::error::Error>> {
+        let target = target(Environment::Lab, true);
+        let looser_budget = SafetyBudget {
+            max_total_requests: target.budget.max_total_requests + 1,
+            ..target.budget.clone()
+        };
+        let mut budget = BudgetTracker::new(looser_budget)?;
+        let switches = KillSwitchState::default();
+        let candidate = Url::parse("http://localhost/")?;
+
+        let mut gate = ExecutionGate::new(&target, "baseline", &switches, &mut budget);
+        assert!(matches!(
+            gate.begin_request(&candidate),
+            Err(ExecutionGateError::BudgetPolicyMismatch)
+        ));
+        assert_eq!(budget.total_requests(), 0);
         Ok(())
     }
 
