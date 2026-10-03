@@ -171,9 +171,12 @@ mod tests {
         }
     }
 
-    fn spawn_fixture(
-        status_code: u16,
-    ) -> Result<(Url, JoinHandle<io::Result<()>>), Box<dyn Error>> {
+    struct FixtureServer {
+        url: Url,
+        handle: JoinHandle<io::Result<()>>,
+    }
+
+    fn spawn_fixture(status_code: u16) -> Result<FixtureServer, Box<dyn Error>> {
         let listener = TcpListener::bind(("127.0.0.1", 0))?;
         let address = listener.local_addr()?;
         let response = format!(
@@ -195,7 +198,7 @@ mod tests {
         });
 
         let url = Url::parse(&format!("http://{address}/health"))?;
-        Ok((url, handle))
+        Ok(FixtureServer { url, handle })
     }
 
     fn join_fixture(handle: JoinHandle<io::Result<()>>) -> Result<(), Box<dyn Error>> {
@@ -212,18 +215,18 @@ mod tests {
 
     #[tokio::test]
     async fn baseline_loop_emits_verified_pass_evidence() -> Result<(), Box<dyn Error>> {
-        let (url, server) = spawn_fixture(204)?;
+        let FixtureServer { url, handle } = spawn_fixture(204)?;
         let report = execute_baseline(test_spec(url, 204)).await?;
 
         assert_eq!(report.evidence().len(), 1);
         assert_eq!(report.evidence()[0].record().verdict(), Verdict::Pass);
         report.verify()?;
-        join_fixture(server)
+        join_fixture(handle)
     }
 
     #[tokio::test]
     async fn baseline_loop_preserves_fail_verdict() -> Result<(), Box<dyn Error>> {
-        let (url, server) = spawn_fixture(500)?;
+        let FixtureServer { url, handle } = spawn_fixture(500)?;
         let report = execute_baseline(test_spec(url, 204)).await?;
 
         assert_eq!(report.evidence().len(), 1);
