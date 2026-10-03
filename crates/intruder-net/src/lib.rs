@@ -174,7 +174,7 @@ impl HttpExecutor {
     ///
     /// # Errors
     ///
-    /// Returns HttpProbeError when the candidate is not IP-literal, execution
+    /// Returns `HttpProbeError` when the candidate is not IP-literal, execution
     /// policy denies the request, the resolved address is forbidden, or the
     /// HTTP client cannot complete the request.
     pub async fn probe_head(
