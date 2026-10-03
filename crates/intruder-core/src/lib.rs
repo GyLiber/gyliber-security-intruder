@@ -1,6 +1,9 @@
 //! Core domain types and safety invariants for `GyLiber` Security Intruder.
 
-use std::collections::BTreeSet;
+use std::{
+    collections::{BTreeSet, VecDeque},
+    time::{Duration, Instant},
+};
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -118,11 +121,13 @@ impl KillSwitchState {
 
 /// Mutable accounting state for centrally enforced request budgets.
 ///
-/// The future HTTP executor must reserve capacity here before opening a request and
+/// The HTTP executor must reserve capacity here before opening a request and
 /// release concurrent capacity when the request completes.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BudgetTracker {
     budget: SafetyBudget,
+    started_at: Instant,
+    request_starts: VecDeque<Instant>,
     total_requests: u32,
     concurrent_requests: u16,
     auth_attempts: u16,
@@ -135,9 +140,15 @@ impl BudgetTracker {
     ///
     /// Returns `CoreError` when the supplied budget is structurally invalid.
     pub fn new(budget: SafetyBudget) -> Result<Self, CoreError> {
+        Self::new_at(budget, Instant::now())
+    }
+
+    fn new_at(budget: SafetyBudget, started_at: Instant) -> Result<Self, CoreError> {
         budget.validate()?;
         Ok(Self {
             budget,
+            started_at,
+            request_starts: VecDeque::new(),
             total_requests: 0,
             concurrent_requests: 0,
             auth_attempts: 0,
@@ -148,9 +159,36 @@ impl BudgetTracker {
     ///
     /// # Errors
     ///
-    /// Returns `CoreError` without changing counters when total or concurrent request
-    /// capacity has been exhausted.
+    /// Returns `CoreError` without consuming request capacity when execution
+    /// duration, request rate, total requests, or concurrent requests exceed policy.
     pub fn try_start_request(&mut self) -> Result<(), CoreError> {
+        self.try_start_request_at(Instant::now())
+    }
+
+    fn try_start_request_at(&mut self, now: Instant) -> Result<(), CoreError> {
+        let execution_limit = Duration::from_secs(self.budget.max_execution_seconds);
+        if now.saturating_duration_since(self.started_at) >= execution_limit {
+            return Err(CoreError::ExecutionTimeBudgetExhausted {
+                limit_seconds: self.budget.max_execution_seconds,
+            });
+        }
+
+        let rate_window = Duration::from_secs(1);
+        while self
+            .request_starts
+            .front()
+            .is_some_and(|started| now.saturating_duration_since(*started) >= rate_window)
+        {
+            self.request_starts.pop_front();
+        }
+
+        let recent_requests = u32::try_from(self.request_starts.len()).unwrap_or(u32::MAX);
+        if recent_requests >= self.budget.max_requests_per_second {
+            return Err(CoreError::RequestRateBudgetExhausted {
+                limit: self.budget.max_requests_per_second,
+            });
+        }
+
         if self.total_requests >= self.budget.max_total_requests {
             return Err(CoreError::RequestBudgetExhausted {
                 limit: self.budget.max_total_requests,
@@ -162,6 +200,7 @@ impl BudgetTracker {
             });
         }
 
+        self.request_starts.push_back(now);
         self.total_requests += 1;
         self.concurrent_requests += 1;
         Ok(())
@@ -220,6 +259,10 @@ pub enum CoreError {
     TargetKillSwitchActive(String),
     #[error("campaign has been cancelled: {0}")]
     CampaignCancelled(String),
+    #[error("execution-time budget exhausted at {limit_seconds} seconds")]
+    ExecutionTimeBudgetExhausted { limit_seconds: u64 },
+    #[error("request-rate budget exhausted at {limit} requests per second")]
+    RequestRateBudgetExhausted { limit: u32 },
     #[error("total request budget exhausted at {limit}")]
     RequestBudgetExhausted { limit: u32 },
     #[error("concurrent request budget exhausted at {limit}")]
@@ -318,6 +361,7 @@ mod tests {
     fn concurrent_budget_stops_second_in_flight_request() -> Result<(), CoreError> {
         let budget = SafetyBudget {
             max_total_requests: 2,
+            max_requests_per_second: 2,
             max_concurrent_requests: 1,
             ..SafetyBudget::production_baseline()
         };
@@ -330,6 +374,48 @@ mod tests {
         ));
         assert_eq!(tracker.total_requests(), 1);
         assert_eq!(tracker.concurrent_requests(), 1);
+        Ok(())
+    }
+
+    #[test]
+    fn request_rate_budget_is_enforced_over_sliding_window() -> Result<(), CoreError> {
+        let start = Instant::now();
+        let budget = SafetyBudget {
+            max_total_requests: 3,
+            max_requests_per_second: 1,
+            max_concurrent_requests: 1,
+            ..SafetyBudget::production_baseline()
+        };
+        let mut tracker = BudgetTracker::new_at(budget, start)?;
+
+        tracker.try_start_request_at(start)?;
+        tracker.finish_request();
+
+        assert!(matches!(
+            tracker.try_start_request_at(start + Duration::from_millis(999)),
+            Err(CoreError::RequestRateBudgetExhausted { limit: 1 })
+        ));
+        assert_eq!(tracker.total_requests(), 1);
+
+        tracker.try_start_request_at(start + Duration::from_secs(1))?;
+        assert_eq!(tracker.total_requests(), 2);
+        Ok(())
+    }
+
+    #[test]
+    fn execution_duration_budget_is_enforced_before_request() -> Result<(), CoreError> {
+        let start = Instant::now();
+        let budget = SafetyBudget {
+            max_execution_seconds: 1,
+            ..SafetyBudget::production_baseline()
+        };
+        let mut tracker = BudgetTracker::new_at(budget, start)?;
+
+        assert!(matches!(
+            tracker.try_start_request_at(start + Duration::from_secs(1)),
+            Err(CoreError::ExecutionTimeBudgetExhausted { limit_seconds: 1 })
+        ));
+        assert_eq!(tracker.total_requests(), 0);
         Ok(())
     }
 
