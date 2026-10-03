@@ -17,6 +17,12 @@ pub struct Target {
 }
 
 impl Target {
+    /// Validate the structural safety requirements of an enrolled target.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`PolicyError`] when the target identifier, allowlists, or
+    /// execution budget do not satisfy the minimum enrollment contract.
     pub fn validate(&self) -> Result<(), PolicyError> {
         if self.target_id.trim().is_empty() {
             return Err(PolicyError::MissingTargetId);
@@ -30,6 +36,12 @@ impl Target {
         self.budget.validate().map_err(PolicyError::InvalidBudget)
     }
 
+    /// Authorize a candidate URL against the declared scheme, host, and path scope.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`PolicyError`] when the target definition is invalid or the
+    /// candidate URL falls outside an enrolled scheme, host, or path boundary.
     pub fn authorize_url(&self, candidate: &Url) -> Result<(), PolicyError> {
         self.validate()?;
 

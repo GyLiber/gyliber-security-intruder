@@ -18,6 +18,12 @@ impl<'a> TargetGate<'a> {
         Self { target }
     }
 
+    /// Apply the target policy to a candidate outbound destination.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`TargetGateError`] when the candidate is outside the enrolled
+    /// target boundary or the target definition itself is invalid.
     pub fn authorize(&self, candidate: &Url) -> Result<(), TargetGateError> {
         self.target.authorize_url(candidate)?;
         Ok(())
