@@ -1,4 +1,4 @@
-//! Core domain types and safety invariants for GyLiber Security Intruder.
+//! Core domain types and safety invariants for `GyLiber` Security Intruder.
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -54,6 +54,10 @@ impl SafetyBudget {
     }
 
     /// Reject obviously unsafe or unusable budget definitions.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::InvalidBudget`] when a required execution limit is zero.
     pub fn validate(&self) -> Result<(), CoreError> {
         if self.max_total_requests == 0 {
             return Err(CoreError::InvalidBudget(
