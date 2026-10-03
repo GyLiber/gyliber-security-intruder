@@ -171,11 +171,7 @@ fn classify_ipv4(address: Ipv4Addr) -> AddressClass {
 
     if matches!(
         octets,
-        [10 | 127, ..]
-            | [100, 64..=127, ..]
-            | [169, 254, ..]
-            | [172, 16..=31, ..]
-            | [192, 168, ..]
+        [10 | 127, ..] | [100, 64..=127, ..] | [169, 254, ..] | [172, 16..=31, ..] | [192, 168, ..]
     ) {
         return AddressClass::LocalNetwork;
     }
