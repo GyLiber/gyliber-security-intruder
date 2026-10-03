@@ -79,7 +79,10 @@ impl<'a> ExecutionGate<'a> {
     ///
     /// Returns ExecutionGateError when execution is stopped, the URL is outside
     /// target policy, or request capacity is exhausted.
-    pub fn begin_request(&mut self, candidate: &Url) -> Result<RequestPermit<'_>, ExecutionGateError> {
+    pub fn begin_request(
+        &mut self,
+        candidate: &Url,
+    ) -> Result<RequestPermit<'_>, ExecutionGateError> {
         self.kill_switches
             .authorize(&self.target.target_id, self.campaign_id)?;
         TargetGate::new(self.target).authorize(candidate)?;
@@ -189,7 +192,8 @@ mod tests {
     }
 
     #[test]
-    fn execution_gate_stops_before_budget_on_global_kill() -> Result<(), Box<dyn std::error::Error>> {
+    fn execution_gate_stops_before_budget_on_global_kill() -> Result<(), Box<dyn std::error::Error>>
+    {
         let target = target(Environment::Lab, true);
         let mut budget = BudgetTracker::new(target.budget.clone())?;
         let switches = KillSwitchState {
@@ -208,8 +212,8 @@ mod tests {
     }
 
     #[test]
-    fn execution_gate_rejects_url_before_budget_reservation() -> Result<(), Box<dyn std::error::Error>>
-    {
+    fn execution_gate_rejects_url_before_budget_reservation()
+    -> Result<(), Box<dyn std::error::Error>> {
         let target = target(Environment::Lab, true);
         let mut budget = BudgetTracker::new(target.budget.clone())?;
         let switches = KillSwitchState::default();
@@ -252,9 +256,7 @@ mod tests {
 
         let mut gate = ExecutionGate::new(&target, "baseline", &switches, &mut budget);
         let permit = gate.begin_request(&candidate)?;
-        assert!(permit
-            .authorize_resolved_ip("127.0.0.1".parse()?)
-            .is_err());
+        assert!(permit.authorize_resolved_ip("127.0.0.1".parse()?).is_err());
         Ok(())
     }
 }
