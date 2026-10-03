@@ -1,4 +1,4 @@
-//! Core domain types and safety invariants for GyLiber Security Intruder.
+//! Core domain types and safety invariants for `GyLiber` Security Intruder.
 
 use std::collections::BTreeSet;
 
@@ -59,7 +59,7 @@ impl SafetyBudget {
     ///
     /// # Errors
     ///
-    /// Returns CoreError::InvalidBudget when a required execution limit is zero.
+    /// Returns `CoreError::InvalidBudget` when a required execution limit is zero.
     pub fn validate(&self) -> Result<(), CoreError> {
         if self.max_total_requests == 0 {
             return Err(CoreError::InvalidBudget(
@@ -101,7 +101,7 @@ impl KillSwitchState {
     ///
     /// # Errors
     ///
-    /// Returns a CoreError whenever global, target, or campaign stop state is active.
+    /// Returns a `CoreError` whenever global, target, or campaign stop state is active.
     pub fn authorize(&self, target_id: &str, campaign_id: &str) -> Result<(), CoreError> {
         if self.global_active {
             return Err(CoreError::GlobalKillSwitchActive);
@@ -133,7 +133,7 @@ impl BudgetTracker {
     ///
     /// # Errors
     ///
-    /// Returns CoreError when the supplied budget is structurally invalid.
+    /// Returns `CoreError` when the supplied budget is structurally invalid.
     pub fn new(budget: SafetyBudget) -> Result<Self, CoreError> {
         budget.validate()?;
         Ok(Self {
@@ -148,7 +148,7 @@ impl BudgetTracker {
     ///
     /// # Errors
     ///
-    /// Returns CoreError without changing counters when total or concurrent request
+    /// Returns `CoreError` without changing counters when total or concurrent request
     /// capacity has been exhausted.
     pub fn try_start_request(&mut self) -> Result<(), CoreError> {
         if self.total_requests >= self.budget.max_total_requests {
@@ -176,7 +176,7 @@ impl BudgetTracker {
     ///
     /// # Errors
     ///
-    /// Returns CoreError without changing the counter when the authentication-attempt
+    /// Returns `CoreError` without changing the counter when the authentication-attempt
     /// budget has been exhausted.
     pub fn try_record_auth_attempt(&mut self) -> Result<(), CoreError> {
         if self.auth_attempts >= self.budget.max_auth_attempts {
