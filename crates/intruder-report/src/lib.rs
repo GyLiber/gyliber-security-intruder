@@ -91,8 +91,7 @@ fn observation_label(observation: &EvidenceObservation) -> String {
 
 #[cfg(test)]
 mod tests {
-    use intruder_core::Verdict;
-    use intruder_evidence::{EvidenceRecord, SealedEvidence};
+    use intruder_evidence::{EvidenceRecord, SealedEvidence, Verdict};
 
     use super::*;
 

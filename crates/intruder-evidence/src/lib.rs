@@ -1,6 +1,6 @@
 //! Redacted evidence records and deterministic integrity envelopes.
 
-use intruder_core::Verdict;
+pub use intruder_core::Verdict;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use thiserror::Error;
