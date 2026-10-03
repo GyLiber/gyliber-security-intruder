@@ -38,7 +38,10 @@ impl Target {
             return Err(PolicyError::NoAllowedSchemes);
         }
         if self.allow_private_networks
-            && matches!(self.environment, Environment::Canary | Environment::Production)
+            && matches!(
+                self.environment,
+                Environment::Canary | Environment::Production
+            )
         {
             return Err(PolicyError::PrivateNetworksForbiddenForEnvironment(
                 self.environment,
@@ -299,7 +302,8 @@ mod tests {
     }
 
     #[test]
-    fn lab_requires_explicit_private_network_permission() -> Result<(), Box<dyn std::error::Error>> {
+    fn lab_requires_explicit_private_network_permission() -> Result<(), Box<dyn std::error::Error>>
+    {
         let address = "127.0.0.1".parse()?;
         assert!(matches!(
             target(Environment::Lab, false).authorize_resolved_ip(address),
