@@ -4,10 +4,7 @@
 //! gate before opening a socket. The gate combines target authorization,
 //! kill-switch evaluation, and central budget reservation.
 
-use std::{
-    net::IpAddr,
-    time::Duration,
-};
+use std::{net::IpAddr, time::Duration};
 
 use intruder_core::{BudgetTracker, CoreError, KillSwitchState};
 use intruder_policy::{PolicyError, Target};
@@ -286,7 +283,6 @@ mod tests {
         }
     }
 
-
     #[tokio::test]
     async fn metadata_probe_reaches_authorized_ip_fixture() -> Result<(), Box<dyn std::error::Error>>
     {
@@ -331,10 +327,12 @@ mod tests {
             .map_err(|_| std::io::Error::other("fixture thread panicked"))??;
 
         assert_eq!(metadata.status_code, 204);
-        assert!(metadata
-            .header_names
-            .iter()
-            .any(|name| name == "x-gyliber-fixture"));
+        assert!(
+            metadata
+                .header_names
+                .iter()
+                .any(|name| name == "x-gyliber-fixture")
+        );
         assert_eq!(budget.total_requests(), 1);
         assert_eq!(budget.concurrent_requests(), 0);
         Ok(())
