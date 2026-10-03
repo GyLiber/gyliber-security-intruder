@@ -91,6 +91,17 @@ fixed fixture       -> expected PASS
 
 A scanner that can only report green is not accepted as security evidence.
 
+## Current delivery status
+
+As of 2026-10-03, the project has an operator-executable v0.1.0 baseline loop on `main`: strict execution specification, target and kill-switch authorization, bounded IP-literal HTTP probing, PASS/FAIL evaluation, metadata-only evidence, SHA-256 integrity sealing, and verified human/JSON reporting.
+
+This is a **development milestone, not the v0.1.0 release**. The persistent secure/vulnerable/fixed fixture laboratory, stable campaign schema/commands, release packaging, and final v0.1.0 release evidence remain outstanding.
+
+See:
+
+- [Engineering Progress Report — 2026-10-03](docs/PROGRESS_2026-10-03.md)
+- [Next Implementation Steps](docs/NEXT_STEPS.md)
+
 ## Architecture direction
 
 v1.0.0 is designed as a **Rust Cargo workspace and modular monolith**, not a microservice fleet.
