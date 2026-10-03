@@ -16,3 +16,6 @@ intruder-policy = { path = "../intruder-policy" }
 reqwest.workspace = true
 thiserror.workspace = true
 url.workspace = true
+
+[dev-dependencies]
+tokio.workspace = true
