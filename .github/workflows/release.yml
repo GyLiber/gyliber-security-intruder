@@ -101,8 +101,17 @@ jobs:
             --describe binaries \
             --all-features \
             --target x86_64-unknown-linux-gnu \
-            --override-filename "intruder-v$VERSION.cdx.json" \
             --spec-version 1.5
+
+          mapfile -t SBOMS < <(find crates/intruder-cli -maxdepth 1 -type f -name '*.cdx.json' -print)
+          if [[ "${#SBOMS[@]}" -ne 1 ]]; then
+            printf 'Expected exactly one binary SBOM, found %s\n' "${#SBOMS[@]}" >&2
+            printf '%s\n' "${SBOMS[@]}" >&2
+            exit 1
+          fi
+
+          mkdir -p dist
+          cp "${SBOMS[0]}" "dist/intruder-v$VERSION.cdx.json"
 
       - name: Assemble release artifacts
         env:
@@ -122,7 +131,7 @@ jobs:
           cp -R schemas campaigns policies fixtures dist/package/
           mkdir -p dist/package/docs
           cp docs/OPERATIONS.md "docs/releases/v$VERSION.md" dist/package/docs/
-          cp "crates/intruder-cli/$SBOM" "dist/$SBOM"
+          test -f "dist/$SBOM"
 
           tar -C dist/package -czf "dist/$ARCHIVE" .
           rm -rf dist/package
