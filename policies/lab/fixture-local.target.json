@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "target": {
+    "target_id": "fixture-local",
+    "environment": "LAB",
+    "allowed_hosts": ["127.0.0.1"],
+    "allowed_schemes": ["http"],
+    "allowed_path_prefixes": ["/health"],
+    "allow_private_networks": true,
+    "budget": {
+      "max_total_requests": 50,
+      "max_requests_per_second": 2,
+      "max_concurrent_requests": 2,
+      "max_request_body_bytes": 16384,
+      "max_response_body_bytes": 262144,
+      "max_execution_seconds": 60,
+      "max_redirects": 3,
+      "max_auth_attempts": 3
+    }
+  }
+}

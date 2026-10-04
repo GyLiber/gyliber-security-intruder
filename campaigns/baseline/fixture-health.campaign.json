@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "campaign_id": "baseline-health",
+  "campaign_version": 1,
+  "target_id": "fixture-local",
+  "test_case_id": "baseline-health-status",
+  "probe": {
+    "kind": "HTTP_HEAD_STATUS",
+    "candidate_url": "http://127.0.0.1:8080/health",
+    "expected_status": 204
+  }
+}
