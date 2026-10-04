@@ -197,7 +197,7 @@ async fn execute_campaign(
         return Err(CliError::MissingRunId);
     }
 
-    campaign.validate_against(&target)?;
+    campaign.validate_against(target)?;
 
     let mut budget = BudgetTracker::new(target.target.budget.clone())?;
     let mut gate = ExecutionGate::new(
