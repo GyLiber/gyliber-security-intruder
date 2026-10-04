@@ -31,6 +31,7 @@ pub enum Verdict {
 
 /// Centrally enforced execution budget.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct SafetyBudget {
     pub max_total_requests: u32,
     pub max_requests_per_second: u32,
@@ -93,6 +94,7 @@ impl SafetyBudget {
 /// Missing or unreadable external kill-switch state must be converted into an active
 /// stop before constructing this value. This type only models an already-resolved snapshot.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct KillSwitchState {
     pub global_active: bool,
     pub disabled_targets: BTreeSet<String>,

@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gyliber.dev/schemas/security-intruder/campaign-v1.json",
+  "title": "GyLiber Security Intruder Campaign v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "campaign_id",
+    "campaign_version",
+    "target_id",
+    "test_case_id",
+    "probe"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "campaign_id": { "type": "string", "minLength": 1 },
+    "campaign_version": { "type": "integer", "minimum": 1 },
+    "target_id": { "type": "string", "minLength": 1 },
+    "test_case_id": { "type": "string", "minLength": 1 },
+    "probe": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "candidate_url", "expected_status"],
+      "properties": {
+        "kind": { "const": "HTTP_HEAD_STATUS" },
+        "candidate_url": { "type": "string", "format": "uri" },
+        "expected_status": { "type": "integer", "minimum": 100, "maximum": 599 }
+      }
+    }
+  }
+}

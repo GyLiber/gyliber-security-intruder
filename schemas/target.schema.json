@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gyliber.dev/schemas/security-intruder/target-v1.json",
+  "title": "GyLiber Security Intruder Target v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "target"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_id",
+        "environment",
+        "allowed_hosts",
+        "allowed_schemes",
+        "allowed_path_prefixes",
+        "allow_private_networks",
+        "budget"
+      ],
+      "properties": {
+        "target_id": { "type": "string", "minLength": 1 },
+        "environment": { "enum": ["LAB", "STAGING", "CANARY", "PRODUCTION"] },
+        "allowed_hosts": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "allowed_schemes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "allowed_path_prefixes": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "allow_private_networks": { "type": "boolean" },
+        "budget": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "max_total_requests",
+            "max_requests_per_second",
+            "max_concurrent_requests",
+            "max_request_body_bytes",
+            "max_response_body_bytes",
+            "max_execution_seconds",
+            "max_redirects",
+            "max_auth_attempts"
+          ],
+          "properties": {
+            "max_total_requests": { "type": "integer", "minimum": 1 },
+            "max_requests_per_second": { "type": "integer", "minimum": 1 },
+            "max_concurrent_requests": { "type": "integer", "minimum": 1 },
+            "max_request_body_bytes": { "type": "integer", "minimum": 0 },
+            "max_response_body_bytes": { "type": "integer", "minimum": 0 },
+            "max_execution_seconds": { "type": "integer", "minimum": 1 },
+            "max_redirects": { "type": "integer", "minimum": 0, "maximum": 255 },
+            "max_auth_attempts": { "type": "integer", "minimum": 0 }
+          }
+        }
+      }
+    }
+  }
+}

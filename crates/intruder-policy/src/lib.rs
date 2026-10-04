@@ -7,8 +7,12 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use url::Url;
 
+pub const TARGET_SCHEMA_VERSION: u16 = 1;
+pub const CAMPAIGN_SCHEMA_VERSION: u16 = 1;
+
 /// Immutable logical target definition. Raw arbitrary URLs are not an execution interface.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Target {
     pub target_id: String,
     pub environment: Environment,
@@ -114,8 +118,143 @@ impl Target {
     }
 }
 
+
+/// Versioned external target document for v0.1.0.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TargetDocument {
+    pub schema_version: u16,
+    pub target: Target,
+}
+
+impl TargetDocument {
+    /// Validate the schema version and enrolled target policy.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the document schema is unsupported or the
+    /// contained target violates enrollment policy.
+    pub fn validate(&self) -> Result<(), PolicyError> {
+        if self.schema_version != TARGET_SCHEMA_VERSION {
+            return Err(PolicyError::UnsupportedTargetSchemaVersion(
+                self.schema_version,
+            ));
+        }
+
+        self.target.validate()
+    }
+}
+
+/// Probe families armed in the v0.1.0 campaign contract.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum ProbeKind {
+    HttpHeadStatus,
+}
+
+/// Strict configuration for one v0.1.0 baseline probe.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CampaignProbe {
+    pub kind: ProbeKind,
+    pub candidate_url: Url,
+    pub expected_status: u16,
+}
+
+impl CampaignProbe {
+    #[must_use]
+    pub const fn kind(&self) -> ProbeKind {
+        self.kind
+    }
+
+    #[must_use]
+    pub const fn expected_status(&self) -> u16 {
+        self.expected_status
+    }
+
+    #[must_use]
+    pub const fn candidate_url(&self) -> &Url {
+        &self.candidate_url
+    }
+}
+
+/// Versioned external campaign document for v0.1.0.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CampaignDocument {
+    pub schema_version: u16,
+    pub campaign_id: String,
+    pub campaign_version: u32,
+    pub target_id: String,
+    pub test_case_id: String,
+    pub probe: CampaignProbe,
+}
+
+impl CampaignDocument {
+    /// Validate the campaign and bind it to one enrolled target document.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when schema/version identifiers are invalid, the
+    /// campaign targets a different enrollment, the expected HTTP status is
+    /// invalid, or the candidate URL escapes target policy.
+    pub fn validate_against(&self, target: &TargetDocument) -> Result<(), PolicyError> {
+        target.validate()?;
+
+        if self.schema_version != CAMPAIGN_SCHEMA_VERSION {
+            return Err(PolicyError::UnsupportedCampaignSchemaVersion(
+                self.schema_version,
+            ));
+        }
+        if self.campaign_id.trim().is_empty() {
+            return Err(PolicyError::MissingCampaignId);
+        }
+        if self.campaign_version == 0 {
+            return Err(PolicyError::InvalidCampaignVersion);
+        }
+        if self.target_id.trim().is_empty() {
+            return Err(PolicyError::MissingCampaignTargetId);
+        }
+        if self.test_case_id.trim().is_empty() {
+            return Err(PolicyError::MissingTestCaseId);
+        }
+        if self.target_id != target.target.target_id {
+            return Err(PolicyError::CampaignTargetMismatch {
+                campaign_target_id: self.target_id.clone(),
+                enrolled_target_id: target.target.target_id.clone(),
+            });
+        }
+        if !(100..=599).contains(&self.probe.expected_status) {
+            return Err(PolicyError::InvalidExpectedHttpStatus(
+                self.probe.expected_status,
+            ));
+        }
+
+        target.target.authorize_url(&self.probe.candidate_url)
+    }
+}
+
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum PolicyError {
+    #[error("unsupported target schema version: {0}")]
+    UnsupportedTargetSchemaVersion(u16),
+    #[error("unsupported campaign schema version: {0}")]
+    UnsupportedCampaignSchemaVersion(u16),
+    #[error("campaign id is required")]
+    MissingCampaignId,
+    #[error("campaign version must be positive")]
+    InvalidCampaignVersion,
+    #[error("campaign target id is required")]
+    MissingCampaignTargetId,
+    #[error("campaign test-case id is required")]
+    MissingTestCaseId,
+    #[error("campaign target {campaign_target_id} does not match enrolled target {enrolled_target_id}")]
+    CampaignTargetMismatch {
+        campaign_target_id: String,
+        enrolled_target_id: String,
+    },
+    #[error("expected HTTP status is outside 100..=599: {0}")]
+    InvalidExpectedHttpStatus(u16),
     #[error("target id is required")]
     MissingTargetId,
     #[error("target must enroll at least one host")]
@@ -340,4 +479,98 @@ mod tests {
         }
         Ok(())
     }
+    fn target_document() -> TargetDocument {
+        TargetDocument {
+            schema_version: TARGET_SCHEMA_VERSION,
+            target: target(Environment::Lab, true),
+        }
+    }
+
+    fn campaign_document() -> Result<CampaignDocument, url::ParseError> {
+        Ok(CampaignDocument {
+            schema_version: CAMPAIGN_SCHEMA_VERSION,
+            campaign_id: "baseline-health".to_owned(),
+            campaign_version: 1,
+            target_id: "fixture-secure".to_owned(),
+            test_case_id: "baseline-health-status".to_owned(),
+            probe: CampaignProbe {
+                kind: ProbeKind::HttpHeadStatus,
+                candidate_url: Url::parse("http://127.0.0.1/health")?,
+                expected_status: 204,
+            },
+        })
+    }
+
+    #[test]
+    fn versioned_campaign_binds_to_enrolled_target() -> Result<(), Box<dyn std::error::Error>> {
+        campaign_document()?.validate_against(&target_document())?;
+        Ok(())
+    }
+
+    #[test]
+    fn campaign_rejects_mismatched_target() -> Result<(), Box<dyn std::error::Error>> {
+        let mut campaign = campaign_document()?;
+        campaign.target_id = "different-target".to_owned();
+
+        assert!(matches!(
+            campaign.validate_against(&target_document()),
+            Err(PolicyError::CampaignTargetMismatch { .. })
+        ));
+        Ok(())
+    }
+
+    #[test]
+    fn campaign_rejects_invalid_expected_status() -> Result<(), Box<dyn std::error::Error>> {
+        let mut campaign = campaign_document()?;
+        campaign.probe.expected_status = 99;
+
+        assert_eq!(
+            campaign.validate_against(&target_document()),
+            Err(PolicyError::InvalidExpectedHttpStatus(99))
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn external_documents_reject_unknown_fields() {
+        let target_json = r#"{
+            "schema_version": 1,
+            "target": {
+                "target_id": "fixture-secure",
+                "environment": "LAB",
+                "allowed_hosts": ["127.0.0.1"],
+                "allowed_schemes": ["http"],
+                "allowed_path_prefixes": ["/health"],
+                "allow_private_networks": true,
+                "budget": {
+                    "max_total_requests": 50,
+                    "max_requests_per_second": 2,
+                    "max_concurrent_requests": 2,
+                    "max_request_body_bytes": 16384,
+                    "max_response_body_bytes": 262144,
+                    "max_execution_seconds": 60,
+                    "max_redirects": 3,
+                    "max_auth_attempts": 3,
+                    "unexpected": true
+                }
+            }
+        }"#;
+        assert!(serde_json::from_str::<TargetDocument>(target_json).is_err());
+
+        let campaign_json = r#"{
+            "schema_version": 1,
+            "campaign_id": "baseline-health",
+            "campaign_version": 1,
+            "target_id": "fixture-secure",
+            "test_case_id": "baseline-health-status",
+            "probe": {
+                "kind": "HTTP_HEAD_STATUS",
+                "candidate_url": "http://127.0.0.1/health",
+                "expected_status": 204,
+                "unexpected": true
+            }
+        }"#;
+        assert!(serde_json::from_str::<CampaignDocument>(campaign_json).is_err());
+    }
+
 }

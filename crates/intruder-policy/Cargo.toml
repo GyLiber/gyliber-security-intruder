@@ -15,3 +15,6 @@ intruder-core = { path = "../intruder-core" }
 serde.workspace = true
 thiserror.workspace = true
 url.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
