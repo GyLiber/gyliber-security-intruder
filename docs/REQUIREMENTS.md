@@ -7,7 +7,7 @@
 **Last reviewed:** 2026-10-04 after successful v0.1.0 release  
 **Owner/client:** Gyile / GyLiber  
 **Engineering executor:** GyLiber Engineering with AI-assisted implementation  
-**Source design:** `GyLiber-Security-Intruder-Design-v1.0.0.md` (approved baseline dated 2026-10-01)  
+**Source design:** [`docs/DESIGN.md`](DESIGN.md) — approved v1.0.0 baseline dated 2026-10-01  
 **Companion product:** `GyLiber/gyliber-command-center`  
 
 ---
