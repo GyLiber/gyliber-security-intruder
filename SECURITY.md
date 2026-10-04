@@ -19,7 +19,14 @@ Until a dedicated private disclosure channel is established, the repository owne
 
 ## Supported versions
 
-The project is pre-1.0. Only the latest development line receives security fixes unless a release notice states otherwise.
+| Line | Support status |
+|---|---|
+| v0.1.x | Supported; only the latest patch release in this line receives fixes |
+| `main` | Active development toward v0.2.0 |
+
+The project remains pre-1.0, so compatibility may change between minor versions when a security boundary requires it. Release notes and migration guidance must document externally material changes.
+
+v0.1.0 release artifacts are distributed with SHA-256 checksums, a CycloneDX SBOM, build-provenance attestation, and binary-SBOM attestation.
 
 ## Authorization boundary
 
