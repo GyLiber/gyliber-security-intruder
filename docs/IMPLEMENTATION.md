@@ -6,7 +6,7 @@
 **Baseline date:** 2026-10-03  
 **Owner:** GyLiber / GyLiber Engineering  
 **Companion application:** `GyLiber/gyliber-command-center`  
-**Source baseline:** `GyLiber-Security-Intruder-Design-v1.0.0.md` (2026-10-01)  
+**Source baseline:** [`docs/DESIGN.md`](DESIGN.md) — approved v1.0.0 baseline dated 2026-10-01  
 **Implementation checkpoint:** v0.1.0 released 2026-10-04 at commit `b98e0a29864c70db3abc9ed023d33446d426fb89`; this document continues to describe the architecture path to v1.0.0.  
 
 ---
