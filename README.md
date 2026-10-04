@@ -2,7 +2,7 @@
 
 > Controlled adversarial security assurance for GyLiber-owned systems.
 
-**Status:** pre-release development toward v0.1.0  
+**Release:** v0.1.0 — closed-loop safety foundation  
 **Primary implementation language:** Rust  
 **License posture:** proprietary / all rights reserved until GyLiber adopts a different written license  
 **Authorization posture:** GyLiber-owned or explicitly authorized targets only
@@ -93,14 +93,26 @@ A scanner that can only report green is not accepted as security evidence.
 
 ## Current delivery status
 
-As of 2026-10-03, the project has an operator-executable v0.1.0 baseline loop on `main`: strict execution specification, target and kill-switch authorization, bounded IP-literal HTTP probing, PASS/FAIL evaluation, metadata-only evidence, SHA-256 integrity sealing, and verified human/JSON reporting.
+v0.1.0 is the first release line of GyLiber Security Intruder. It provides a bounded, operator-executable assurance loop with:
 
-This is a **development milestone, not the v0.1.0 release**. The persistent secure/vulnerable/fixed fixture laboratory, stable campaign schema/commands, release packaging, and final v0.1.0 release evidence remain outstanding.
+- versioned target and campaign documents;
+- strict target/campaign validation and non-executing planning;
+- explicit kill-switch snapshots and centrally enforced safety budgets;
+- IP-literal, no-redirect/no-retry HTTP HEAD probing through the Target Gate;
+- PASS/FAIL oracle evaluation;
+- metadata-only evidence with SHA-256 integrity sealing;
+- checksummed create-new run bundles;
+- repository-controlled secure → PASS, vulnerable → FAIL, fixed → PASS fixture proof;
+- CI, RustSec, CodeQL, SBOM, checksum, provenance-attestation and SBOM-attestation release controls.
 
-See:
+The release remains intentionally narrow: hostname execution, signed target/campaign authorization, authentication/session campaigns, broader API/authorization testing, defense correlation, containment/recovery verification, and confidential durable evidence storage are not yet armed.
 
-- [Engineering Progress Report — 2026-10-03](docs/PROGRESS_2026-10-03.md)
-- [Next Implementation Steps](docs/NEXT_STEPS.md)
+Release material:
+
+- [v0.1.0 release notes](docs/releases/v0.1.0.md)
+- [v0.1.0 release evidence dossier](docs/releases/v0.1.0-evidence.md)
+- [v0.1.0 operations](docs/OPERATIONS.md)
+- [Post-v0.1.0 next steps](docs/NEXT_STEPS.md)
 
 ## Architecture direction
 

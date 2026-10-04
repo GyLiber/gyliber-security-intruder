@@ -1,164 +1,94 @@
 # Next Implementation Steps
 
 **Product:** GyLiber Security Intruder  
-**Planning baseline:** after the 2026-10-03 end-to-end CLI milestone  
-**Immediate objective:** complete the v0.1.0 closed-loop safety foundation
+**Planning baseline:** after v0.1.0 closed-loop safety foundation  
+**Immediate objective:** v0.2.0 — integrity and authenticity
 
-## 1. Next work session — primary implementation unit
+## 1. v0.2.0 primary implementation unit
 
-The next substantive unit should be the **deterministic adversarial fixture laboratory**.
+The next release should add a cryptographic trust layer around the configuration and evidence contracts already proven in v0.1.0.
 
-Required project fixtures:
+The primary implementation sequence is:
 
-```text
-secure fixture      -> expected PASS
-vulnerable fixture  -> expected FAIL
-fixed fixture       -> expected PASS
-```
+1. define canonical serialization for signed target and campaign documents;
+2. add signer/key identifiers and explicit signature envelopes;
+3. verify Ed25519 signatures before target/campaign authorization;
+4. define key-rotation and revocation semantics;
+5. add expiry/not-before and anti-replay/rollback controls;
+6. sign run-bundle manifests so integrity can be tied to an authenticated signer, not only a SHA-256 digest;
+7. add negative fixtures for invalid signatures, stale signatures, wrong signer, rollback, and tampered manifests;
+8. publish v0.2.0 only after the same CI/Security/release evidence gates used by v0.1.0 remain green.
 
-The fixture laboratory must be synthetic, deterministic, locally runnable in CI, and incapable of depending on production GyLiber data.
+v0.1.0 deliberately stops short of this trust layer: its evidence hashes provide integrity detection but not signer identity.
 
-### Acceptance criteria
+## 2. Trust model decisions required before production authorization
 
-The next unit is complete only when:
+Before v0.2.0 is allowed to authorize non-fixture targets, GyLiber must document:
 
-- secure, vulnerable, and fixed fixture states are represented in repository-controlled test infrastructure;
-- the same baseline security contract is evaluated against all three;
-- the vulnerable state generates the expected FAIL result;
-- the corrected state returns to PASS;
-- fixture execution remains within the existing Target Gate and budget controls;
-- the behavior is reproducible in GitHub Actions;
-- no external account or production target is required.
+- who may sign target enrollments;
+- who may sign campaigns;
+- whether the same key class may sign both;
+- key custody and backup;
+- rotation frequency and emergency revocation;
+- acceptable signature age and execution window;
+- behavior when revocation/authorization state cannot be verified.
 
-This is the highest-value next step because it proves that the Intruder detects a deliberately introduced control failure rather than merely producing reports.
+The implementation must fail closed when those answers are unavailable or ambiguous.
 
-## 2. Following unit — formal target and campaign contracts
+## 3. v0.3.0 — authentication and session assurance
 
-Promote the current internal execution-spec concept into stable v0.1.0 configuration contracts.
+After v0.2.0 establishes signed authorization, the next capability gate is synthetic authentication/session testing:
 
-Planned work:
+- synthetic identities only;
+- bounded login attempts;
+- throttling/lockout verification;
+- session expiry;
+- session revocation;
+- logout invalidation;
+- replay resistance where applicable;
+- no real employee/client credentials.
 
-- versioned target schema;
-- versioned campaign schema;
-- canonical campaign/test identifiers;
-- strict unknown-field rejection;
-- validation of target/campaign relationship;
-- validation of approved probe types and budgets;
-- machine-readable schema files under repository control;
-- operator commands aligned with the intended interface:
+## 4. Later release gates
 
-```text
-intruder target validate <target-file>
-intruder campaign validate <campaign-file>
-intruder campaign plan <campaign-file>
-intruder run <campaign-file-or-id>
-```
+Subsequent minor releases should continue the existing capability-gated roadmap:
 
-The current `baseline-run` command is an intentionally narrow bridge to this stable campaign interface, not the final CLI contract.
+- authorization/API boundary assurance;
+- detection correlation;
+- containment and recovery verification;
+- safe adversarial fixture expansion;
+- scheduled continuous assurance;
+- durable confidential evidence storage and restore testing;
+- production Command Center profiles only after explicit authorization and environment ownership are established;
+- final v1.0.0 hardening and acceptance evidence.
 
-## 3. Evidence bundle and report operations
+## 5. Infrastructure and account decisions
 
-After campaign contracts are stable:
+No new external account is required to begin v0.2.0 fixture-based signing work.
 
-- define a run-directory/bundle layout;
-- include run ID, target ID, campaign ID/version, tool version, and source commit;
-- emit sealed JSON evidence and human report together;
-- refuse silent overwrite of prior evidence;
-- add deterministic manifest/checksum generation;
-- document retention and redaction behavior;
-- keep all v0.1.0 fixtures synthetic.
-
-Durable external evidence storage is not required for the first fixture release, but its future trust boundary must be documented before real GyLiber evidence is admitted.
-
-## 4. v0.1.0 release engineering
-
-Before tagging v0.1.0:
-
-- add a release workflow using immutable action revisions;
-- build release binaries from the pinned Rust toolchain;
-- produce checksums;
-- produce an SBOM where supported by the adopted tooling;
-- generate build provenance/attestation where supported;
-- document known limitations;
-- document authorized-use boundaries;
-- create a v0.1.0 release evidence dossier;
-- validate that source and release artifacts are recoverable independently of a developer laptop.
-
-## 5. v0.1.0 exit criteria
-
-v0.1.0 should not be tagged until all of these are true:
-
-- secure fixture → PASS;
-- vulnerable fixture → FAIL;
-- fixed fixture → PASS;
-- arbitrary-target execution remains unavailable through the normal CLI;
-- tested target-boundary escape attempts are denied;
-- request/concurrency/rate/time budgets are enforced;
-- kill-switch behavior is fail-closed;
-- evidence contains no prohibited response bodies/header values;
-- evidence integrity verification detects tampering;
-- JSON and human reports are produced deterministically enough for the defined contract;
-- CI passes formatting, compile, Clippy, and all tests;
-- Security passes dependency audit and CodeQL;
-- release artifacts/checksums are generated through CI;
-- documentation states what was and was not tested;
-- no production GyLiber secret or real client data is required.
-
-## 6. Deferred work after v0.1.0
-
-The current roadmap remains capability-gated.
-
-### v0.2.0 — integrity/authenticity
-
-Primary themes:
-
-- signed target and campaign records;
-- signer trust model and key rotation;
-- canonical serialization;
-- anti-replay/rollback controls;
-- signed evidence/report manifests.
-
-### v0.3.0 — authentication/session assurance
-
-Primary themes:
-
-- synthetic identities;
-- bounded authentication flows;
-- session expiry/revocation checks;
-- throttling/lockout verification.
-
-### v0.4.0 and later
-
-Subsequent versions expand authorization/API assurance, detection correlation, containment/recovery, safe adversarial coverage, durability/continuous assurance, and final v1.0.0 hardening.
-
-## 7. External dependencies / client actions
-
-No new external service account is required for the immediate fixture-laboratory work.
-
-Before durable real-world evidence, persistent deployment, or production-target execution is introduced, GyLiber will need explicit decisions on:
+Before real-world durable evidence or production-target authorization, GyLiber will need explicit decisions for:
 
 - private durable evidence/object storage;
 - independent backup provider;
-- production authorization and environment ownership;
 - signing-key custody;
-- access-control/identity provider;
+- workload identity/access control;
+- production authorization ownership;
 - alert/detection integration.
 
-Those decisions are intentionally deferred so that v0.1.0 can prove the safety model without introducing unnecessary credentials or infrastructure.
+These are intentionally not smuggled into v0.1.0 as hidden infrastructure dependencies.
 
-## 8. Recommended next commit sequence
+## 6. Recommended next commit sequence
 
-The next implementation work should remain incremental. A likely sequence is:
+A likely next sequence is:
 
 ```text
-test(fixtures): add deterministic baseline fixture service
-test(fixtures): prove vulnerable and fixed control states
-feat(campaign): define versioned target and campaign contracts
-feat(cli): validate and plan baseline campaigns
-feat(cli): execute campaign contract end to end
-docs: document v0.1.0 operations and fixture evidence
-ci(release): add v0.1.0 release evidence pipeline
-chore(release): prepare v0.1.0
+feat(signing): define canonical signed document envelope
+feat(signing): verify target and campaign signatures
+test(signing): reject stale wrong-signer and tampered documents
+feat(evidence): sign run bundle manifest
+test(evidence): prove signed manifest tamper detection
+docs: document key custody rotation and revocation
+ci(release): extend release evidence for signed artifacts
+chore(release): prepare v0.2.0
 ```
 
-Commit boundaries may change when implementation evidence requires it; correctness of each unit remains more important than preserving a prewritten sequence.
+Commit boundaries may change when implementation evidence requires it; the fail-closed trust model remains authoritative.
