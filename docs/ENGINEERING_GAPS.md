@@ -4,6 +4,7 @@
 **Purpose:** Record engineering, security, operations, legal/IP and organizational considerations that are easy for a first-time product owner to miss, so they remain visible throughout GyLiber's growth.  
 **Status:** Living document  
 **Baseline date:** 2026-10-03  
+**Last reviewed:** 2026-10-04 after v0.1.0 release  
 
 ---
 
@@ -12,6 +13,8 @@
 A novice founder can specify the visible product correctly while still missing invisible operating requirements: key rotation, restore testing, dependency compromise, staff offboarding, security ownership, incident response, legal provenance, reproducible releases, cost limits, and similar controls.
 
 Those omissions are normal unknown-unknowns, but a professional engineering process must externalize them before they become incidents.
+
+**Release checkpoint:** v0.1.0 shipped on 2026-10-04. This register now distinguishes shipped controls from carry-forward governance and production-readiness gaps; release does not silently close an unevidenced control.
 
 This register is therefore not a criticism of the product brief. It is the place where experienced-practice obligations are made explicit and later converted into requirements, ADRs, runbooks or company policy.
 
@@ -524,20 +527,22 @@ Do not create bureaucracy before it has an operational purpose, but do not leave
 
 ---
 
-## 36. Immediate additions to implement before/with v0.1.0
+## 36. v0.1.0 closure status and carry-forward controls
 
-- [ ] Threat model document.
-- [ ] `SECURITY.md`.
-- [ ] `CONTRIBUTING.md` with conventional commits and security-sensitive change rules.
-- [ ] AI-assisted engineering disclosure/policy.
-- [ ] CODEOWNERS.
-- [ ] Dependency/license policy.
-- [ ] SHA-pinned Actions.
-- [ ] Secret scanning.
-- [ ] SBOM/release provenance plan.
-- [ ] Safe fixture lab proving PASS/FAIL/PASS.
-- [ ] Disaster-recovery document even before the backup automation exists.
-- [ ] Explicit statement that no real business/banking/staff data belongs in Intruder v1.0.0.
+- [x] Threat model document — `docs/THREAT_MODEL.md`.
+- [x] `SECURITY.md`.
+- [x] `CONTRIBUTING.md` with conventional commits and security-sensitive change rules.
+- [x] AI-assisted engineering disclosure/policy in README and requirements.
+- [x] `CODEOWNERS` with initial repository ownership.
+- [ ] Dependency/license allow/deny policy — carry forward before expanding supply-chain trust.
+- [x] SHA-pinned Actions.
+- [ ] Repository-level secret-scanning/push-protection configuration verified and evidenced — code alone cannot prove the GitHub setting.
+- [x] SBOM, checksums, build-provenance attestation and binary-SBOM attestation for v0.1.0.
+- [x] Safe fixture lab proving PASS/FAIL/PASS.
+- [x] Disaster-recovery document — `docs/DISASTER_RECOVERY.md`; independent backup automation/restore proof remains open.
+- [x] Explicit statement that real business/banking/staff data does not belong in the Intruder v0.1.0/v1.0 test-data posture.
+
+**Release closure:** v0.1.0 shipped with the two repository-governance gaps above still explicit. They are next actions, not silently treated as completed controls.
 
 ---
 
