@@ -977,7 +977,7 @@ The product should not add dependencies merely to imitate a large security frame
 
 # 19. Repository design
 
-Proposed repository:
+Reference repository layout target:
 
 ```text
 gyliber-security-intruder/
