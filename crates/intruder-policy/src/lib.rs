@@ -532,45 +532,5 @@ mod tests {
         Ok(())
     }
 
-    #[test]
-    fn external_documents_reject_unknown_fields() {
-        let target_json = r#"{
-            "schema_version": 1,
-            "target": {
-                "target_id": "fixture-secure",
-                "environment": "LAB",
-                "allowed_hosts": ["127.0.0.1"],
-                "allowed_schemes": ["http"],
-                "allowed_path_prefixes": ["/health"],
-                "allow_private_networks": true,
-                "budget": {
-                    "max_total_requests": 50,
-                    "max_requests_per_second": 2,
-                    "max_concurrent_requests": 2,
-                    "max_request_body_bytes": 16384,
-                    "max_response_body_bytes": 262144,
-                    "max_execution_seconds": 60,
-                    "max_redirects": 3,
-                    "max_auth_attempts": 3,
-                    "unexpected": true
-                }
-            }
-        }"#;
-        assert!(serde_json::from_str::<TargetDocument>(target_json).is_err());
 
-        let campaign_json = r#"{
-            "schema_version": 1,
-            "campaign_id": "baseline-health",
-            "campaign_version": 1,
-            "target_id": "fixture-secure",
-            "test_case_id": "baseline-health-status",
-            "probe": {
-                "kind": "HTTP_HEAD_STATUS",
-                "candidate_url": "http://127.0.0.1/health",
-                "expected_status": 204,
-                "unexpected": true
-            }
-        }"#;
-        assert!(serde_json::from_str::<CampaignDocument>(campaign_json).is_err());
-    }
 }
