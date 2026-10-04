@@ -221,6 +221,15 @@ pub enum EvidenceError {
     IntegrityMismatch,
 }
 
+/// Return a standard lowercase SHA-256 digest for arbitrary bytes.
+#[must_use]
+pub fn content_sha256_hex(bytes: &[u8]) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(bytes);
+    let digest = hasher.finalize();
+    lower_hex(digest.as_ref())
+}
+
 fn evidence_digest(record: &EvidenceRecord) -> Result<String, EvidenceError> {
     let serialized = serde_json::to_vec(record)?;
     let mut hasher = Sha256::new();
@@ -260,6 +269,14 @@ mod tests {
                 "x-gyliber-fixture".to_owned(),
             ],
         )
+    }
+
+    #[test]
+    fn content_hash_matches_standard_sha256() {
+        assert_eq!(
+            content_sha256_hex(b""),
+            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        );
     }
 
     #[test]

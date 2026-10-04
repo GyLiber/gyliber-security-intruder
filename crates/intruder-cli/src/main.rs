@@ -6,11 +6,11 @@ use std::{
 
 use clap::{Parser, Subcommand};
 use intruder_core::{BudgetTracker, KillSwitchState, Verdict};
-use intruder_evidence::{EvidenceError, EvidenceRecord, SealedEvidence};
+use intruder_evidence::{EvidenceError, EvidenceRecord, SealedEvidence, content_sha256_hex};
 use intruder_net::{ExecutionGate, HttpExecutor, HttpProbeError};
 use intruder_policy::{CampaignDocument, PolicyError, ProbeKind, TargetDocument};
 use intruder_report::RunReport;
-use serde::de::DeserializeOwned;
+use serde::{Serialize, de::DeserializeOwned};
 use thiserror::Error;
 
 #[derive(Debug, Parser)]
@@ -50,9 +50,9 @@ enum Command {
         /// Caller-supplied run identifier.
         #[arg(long)]
         run_id: String,
-        /// New JSON report path. Existing files are never overwritten.
+        /// New run-bundle directory. Existing paths are never overwritten.
         #[arg(long)]
-        json_out: PathBuf,
+        out_dir: PathBuf,
     },
     /// Show the default unresolved global kill-switch posture.
     KillSwitchStatus,
@@ -139,13 +139,14 @@ async fn main() -> Result<(), CliError> {
             campaign,
             kill_switch,
             run_id,
-            json_out,
+            out_dir,
         } => {
             let target = load_target(&target)?;
             let campaign = load_campaign(&campaign, &target)?;
             let kill_switches = load_json::<KillSwitchState>(&kill_switch)?;
-            let report = execute_campaign(target, campaign, kill_switches, run_id).await?;
-            write_json_report(&json_out, &report)?;
+            let report = execute_campaign(&target, &campaign, &kill_switches, &run_id).await?;
+            let metadata = RunBundleMetadata::new(&run_id, &target, &campaign, &report);
+            write_run_bundle(&out_dir, &report, &metadata)?;
             print!("{}", report.render_human()?);
         }
         Command::KillSwitchStatus => {
@@ -187,10 +188,10 @@ fn render_plan(target: &TargetDocument, campaign: &CampaignDocument) -> String {
 }
 
 async fn execute_campaign(
-    target: TargetDocument,
-    campaign: CampaignDocument,
-    kill_switches: KillSwitchState,
-    run_id: String,
+    target: &TargetDocument,
+    campaign: &CampaignDocument,
+    kill_switches: &KillSwitchState,
+    run_id: &str,
 ) -> Result<RunReport, CliError> {
     if run_id.trim().is_empty() {
         return Err(CliError::MissingRunId);
@@ -202,7 +203,7 @@ async fn execute_campaign(
     let mut gate = ExecutionGate::new(
         &target.target,
         &campaign.campaign_id,
-        &kill_switches,
+        kill_switches,
         &mut budget,
     );
 
@@ -221,8 +222,8 @@ async fn execute_campaign(
     };
 
     let evidence = EvidenceRecord::http_metadata(
-        target.target.target_id,
-        campaign.test_case_id,
+        target.target.target_id.as_str(),
+        campaign.test_case_id.as_str(),
         verdict,
         campaign.probe.expected_status(),
         metadata.status_code,
@@ -237,10 +238,106 @@ async fn execute_campaign(
     Ok(report)
 }
 
-fn write_json_report(path: &Path, report: &RunReport) -> Result<(), CliError> {
+const RUN_BUNDLE_SCHEMA_VERSION: u16 = 1;
+
+#[derive(Debug, Serialize)]
+struct RunBundleMetadata {
+    schema_version: u16,
+    run_id: String,
+    campaign_id: String,
+    campaign_version: u32,
+    target_id: String,
+    tool_version: String,
+    source_commit: String,
+    evidence_records: usize,
+}
+
+impl RunBundleMetadata {
+    fn new(
+        run_id: &str,
+        target: &TargetDocument,
+        campaign: &CampaignDocument,
+        report: &RunReport,
+    ) -> Self {
+        Self {
+            schema_version: RUN_BUNDLE_SCHEMA_VERSION,
+            run_id: run_id.to_owned(),
+            campaign_id: campaign.campaign_id.clone(),
+            campaign_version: campaign.campaign_version,
+            target_id: target.target.target_id.clone(),
+            tool_version: env!("CARGO_PKG_VERSION").to_owned(),
+            source_commit: source_commit().to_owned(),
+            evidence_records: report.evidence().len(),
+        }
+    }
+}
+
+#[derive(Debug)]
+struct RunBundle {
+    report_json: Vec<u8>,
+    report_text: Vec<u8>,
+    run_json: Vec<u8>,
+    checksums: Vec<u8>,
+}
+
+fn source_commit() -> &'static str {
+    match option_env!("GYLIBER_SOURCE_COMMIT") {
+        Some(commit) => commit,
+        None => "UNSPECIFIED",
+    }
+}
+
+fn build_run_bundle(
+    report: &RunReport,
+    metadata: &RunBundleMetadata,
+) -> Result<RunBundle, CliError> {
+    report.verify()?;
+
+    let mut report_json = serde_json::to_vec_pretty(report)?;
+    report_json.push(b'\n');
+
+    let mut report_text = report.render_human()?.into_bytes();
+    if !report_text.ends_with(b"\n") {
+        report_text.push(b'\n');
+    }
+
+    let mut run_json = serde_json::to_vec_pretty(metadata)?;
+    run_json.push(b'\n');
+
+    let checksums = format!(
+        "{}  report.json\n{}  report.txt\n{}  run.json\n",
+        content_sha256_hex(&report_json),
+        content_sha256_hex(&report_text),
+        content_sha256_hex(&run_json)
+    )
+    .into_bytes();
+
+    Ok(RunBundle {
+        report_json,
+        report_text,
+        run_json,
+        checksums,
+    })
+}
+
+fn write_run_bundle(
+    path: &Path,
+    report: &RunReport,
+    metadata: &RunBundleMetadata,
+) -> Result<(), CliError> {
+    let bundle = build_run_bundle(report, metadata)?;
+    fs::create_dir(path)?;
+
+    write_new_file(&path.join("report.json"), &bundle.report_json)?;
+    write_new_file(&path.join("report.txt"), &bundle.report_text)?;
+    write_new_file(&path.join("run.json"), &bundle.run_json)?;
+    write_new_file(&path.join("SHA256SUMS"), &bundle.checksums)?;
+    Ok(())
+}
+
+fn write_new_file(path: &Path, bytes: &[u8]) -> Result<(), CliError> {
     let mut file = OpenOptions::new().write(true).create_new(true).open(path)?;
-    serde_json::to_writer_pretty(&mut file, report)?;
-    file.write_all(b"\n")?;
+    file.write_all(bytes)?;
     file.sync_all()?;
     Ok(())
 }
@@ -352,13 +449,12 @@ mod tests {
         ] {
             let fixture: FixtureDefinition = serde_json::from_str(source)?;
             let FixtureServer { url, handle } = spawn_fixture(fixture.status_code)?;
-            let report = execute_campaign(
-                test_target_document(),
-                test_campaign(url, fixture.expected_status),
-                KillSwitchState::default(),
-                format!("run-{}", fixture.fixture_id),
-            )
-            .await?;
+            let target = test_target_document();
+            let campaign = test_campaign(url, fixture.expected_status);
+            let kill_switches = KillSwitchState::default();
+            let run_id = format!("run-{}", fixture.fixture_id);
+            let report =
+                execute_campaign(&target, &campaign, &kill_switches, &run_id).await?;
 
             assert_eq!(report.evidence().len(), 1, "fixture={}", fixture.fixture_id);
             assert_eq!(
@@ -414,6 +510,33 @@ mod tests {
             }
         }"#;
         assert!(serde_json::from_str::<CampaignDocument>(campaign_json).is_err());
+    }
+
+    #[test]
+    fn run_bundle_manifest_covers_all_emitted_files() -> Result<(), Box<dyn Error>> {
+        let evidence = EvidenceRecord::http_metadata(
+            "fixture-local",
+            "baseline-health-status",
+            Verdict::Pass,
+            204,
+            204,
+            Some(0),
+            ["content-length".to_owned()],
+        );
+        let report = RunReport::new("run-bundle-test", vec![SealedEvidence::seal(evidence)?]);
+        let target = test_target_document();
+        let campaign = test_campaign(Url::parse("http://127.0.0.1/health")?, 204);
+        let metadata = RunBundleMetadata::new("run-bundle-test", &target, &campaign, &report);
+        let bundle = build_run_bundle(&report, &metadata)?;
+        let manifest = String::from_utf8(bundle.checksums.clone())?;
+
+        assert!(manifest.contains(&content_sha256_hex(&bundle.report_json)));
+        assert!(manifest.contains(&content_sha256_hex(&bundle.report_text)));
+        assert!(manifest.contains(&content_sha256_hex(&bundle.run_json)));
+        assert!(manifest.contains("report.json"));
+        assert!(manifest.contains("report.txt"));
+        assert!(manifest.contains("run.json"));
+        Ok(())
     }
 
     #[test]
