@@ -213,25 +213,38 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn baseline_loop_emits_verified_pass_evidence() -> Result<(), Box<dyn Error>> {
-        let FixtureServer { url, handle } = spawn_fixture(204)?;
-        let report = execute_baseline(test_spec(url, 204)).await?;
-
-        assert_eq!(report.evidence().len(), 1);
-        assert_eq!(report.evidence()[0].record().verdict(), Verdict::Pass);
-        report.verify()?;
-        join_fixture(handle)
+    #[derive(Debug, Deserialize)]
+    #[serde(deny_unknown_fields)]
+    struct FixtureDefinition {
+        fixture_id: String,
+        status_code: u16,
+        expected_status: u16,
+        expected_verdict: Verdict,
     }
 
     #[tokio::test]
-    async fn baseline_loop_preserves_fail_verdict() -> Result<(), Box<dyn Error>> {
-        let FixtureServer { url, handle } = spawn_fixture(500)?;
-        let report = execute_baseline(test_spec(url, 204)).await?;
+    async fn fixture_triplet_proves_secure_vulnerable_and_fixed_states()
+    -> Result<(), Box<dyn Error>> {
+        for source in [
+            include_str!("../../../fixtures/baseline/secure.json"),
+            include_str!("../../../fixtures/baseline/vulnerable.json"),
+            include_str!("../../../fixtures/baseline/fixed.json"),
+        ] {
+            let fixture: FixtureDefinition = serde_json::from_str(source)?;
+            let FixtureServer { url, handle } = spawn_fixture(fixture.status_code)?;
+            let report = execute_baseline(test_spec(url, fixture.expected_status)).await?;
 
-        assert_eq!(report.evidence().len(), 1);
-        assert_eq!(report.evidence()[0].record().verdict(), Verdict::Fail);
-        report.verify()?;
-        join_fixture(handle)
+            assert_eq!(report.evidence().len(), 1, "fixture={}", fixture.fixture_id);
+            assert_eq!(
+                report.evidence()[0].record().verdict(),
+                fixture.expected_verdict,
+                "fixture={}",
+                fixture.fixture_id
+            );
+            report.verify()?;
+            join_fixture(handle)?;
+        }
+
+        Ok(())
     }
 }

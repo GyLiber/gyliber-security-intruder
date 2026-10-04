@@ -1,0 +1,6 @@
+{
+  "fixture_id": "baseline-vulnerable",
+  "status_code": 500,
+  "expected_status": 204,
+  "expected_verdict": "FAIL"
+}

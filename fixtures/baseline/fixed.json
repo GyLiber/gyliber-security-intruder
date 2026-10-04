@@ -1,0 +1,6 @@
+{
+  "fixture_id": "baseline-fixed",
+  "status_code": 204,
+  "expected_status": 204,
+  "expected_verdict": "PASS"
+}
