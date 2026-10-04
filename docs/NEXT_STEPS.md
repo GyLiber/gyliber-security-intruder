@@ -4,6 +4,19 @@
 **Planning baseline:** after v0.1.0 closed-loop safety foundation  
 **Immediate objective:** v0.2.0 — integrity and authenticity
 
+## 0. Post-v0.1.0 governance closure before broader attack capability
+
+Before materially expanding the Intruder's adversarial surface, close or explicitly accept these carry-forward controls:
+
+1. add a dependency license/source allow/deny policy (for example `cargo-deny`) and run it in CI;
+2. verify/enable GitHub secret scanning and push protection for the public repository, and record the setting as governance evidence;
+3. verify GitHub branch/ruleset protection and required CI/Security checks from repository administration; document any plan limitations;
+4. create an encrypted independent source/release backup outside the primary GitHub account/provider and perform a restore drill;
+5. record the accepted RPO/RTO for source/release recovery;
+6. define signing-key custody, rotation and revocation ownership before v0.2.0 signed authorization is allowed to become operational.
+
+These are not reasons to reopen v0.1.0; they are explicit prerequisites for increasing trust and operational consequence.
+
 ## 1. v0.2.0 primary implementation unit
 
 The next release should add a cryptographic trust layer around the configuration and evidence contracts already proven in v0.1.0.
