@@ -10,7 +10,7 @@ use intruder_evidence::{EvidenceError, EvidenceRecord, SealedEvidence};
 use intruder_net::{ExecutionGate, HttpExecutor, HttpProbeError};
 use intruder_policy::{CampaignDocument, PolicyError, ProbeKind, TargetDocument};
 use intruder_report::RunReport;
-use serde::{Deserialize, de::DeserializeOwned};
+use serde::de::DeserializeOwned;
 use thiserror::Error;
 
 #[derive(Debug, Parser)]
@@ -256,6 +256,7 @@ mod tests {
 
     use intruder_core::{Environment, SafetyBudget};
     use intruder_policy::{CAMPAIGN_SCHEMA_VERSION, CampaignProbe, TARGET_SCHEMA_VERSION};
+    use serde::Deserialize;
     use url::Url;
 
     use super::*;
