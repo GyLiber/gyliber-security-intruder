@@ -453,8 +453,7 @@ mod tests {
             let campaign = test_campaign(url, fixture.expected_status);
             let kill_switches = KillSwitchState::default();
             let run_id = format!("run-{}", fixture.fixture_id);
-            let report =
-                execute_campaign(&target, &campaign, &kill_switches, &run_id).await?;
+            let report = execute_campaign(&target, &campaign, &kill_switches, &run_id).await?;
 
             assert_eq!(report.evidence().len(), 1, "fixture={}", fixture.fixture_id);
             assert_eq!(
