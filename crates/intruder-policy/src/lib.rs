@@ -118,7 +118,6 @@ impl Target {
     }
 }
 
-
 /// Versioned external target document for v0.1.0.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -248,7 +247,9 @@ pub enum PolicyError {
     MissingCampaignTargetId,
     #[error("campaign test-case id is required")]
     MissingTestCaseId,
-    #[error("campaign target {campaign_target_id} does not match enrolled target {enrolled_target_id}")]
+    #[error(
+        "campaign target {campaign_target_id} does not match enrolled target {enrolled_target_id}"
+    )]
     CampaignTargetMismatch {
         campaign_target_id: String,
         enrolled_target_id: String,
@@ -572,5 +573,4 @@ mod tests {
         }"#;
         assert!(serde_json::from_str::<CampaignDocument>(campaign_json).is_err());
     }
-
 }
