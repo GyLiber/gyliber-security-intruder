@@ -33,7 +33,7 @@ The project is designed around several non-negotiable invariants:
 - targets are enrolled and authorized before execution;
 - outbound traffic is intended to pass through a non-bypassable Target Gate;
 - internet-target policy denies private, loopback, link-local and metadata destinations;
-- redirects are re-authorized rather than blindly followed;
+- redirects are never blindly followed; v0.1.0 disables them, and any future redirect-following mode must re-authorize every hop;
 - campaigns operate under request, concurrency and execution budgets;
 - kill-switch state fails closed;
 - synthetic identities and synthetic data are preferred over real client data;
@@ -112,6 +112,9 @@ Release material:
 - [v0.1.0 release notes](docs/releases/v0.1.0.md)
 - [v0.1.0 release evidence dossier](docs/releases/v0.1.0-evidence.md)
 - [v0.1.0 operations](docs/OPERATIONS.md)
+- [v0.1.0 delivery closure](docs/PROGRESS_2026-10-04.md)
+- [v0.1.0 threat model](docs/THREAT_MODEL.md)
+- [Disaster recovery and backup posture](docs/DISASTER_RECOVERY.md)
 - [Post-v0.1.0 next steps](docs/NEXT_STEPS.md)
 
 ## Architecture direction
@@ -131,17 +134,22 @@ These boundaries are intended to scale to a future multi-developer team without 
 
 ## Development and release controls
 
-Every material change is expected to pass, as applicable:
+The automated v0.1.0 release gates are:
 
 - `cargo fmt --check`;
-- compilation;
-- unit/integration/safety tests;
+- workspace compilation;
+- unit/integration/fixture tests;
 - Clippy with warnings denied;
-- dependency/advisory policy;
-- secret scanning;
-- CodeQL or equivalent static analysis;
-- Target Gate regression tests;
-- parser/boundary fuzzing as the project matures.
+- RustSec dependency audit;
+- CodeQL Rust analysis;
+- release rebuild from the pinned toolchain;
+- CycloneDX SBOM generation;
+- SHA-256 release checksums;
+- GitHub build-provenance and SBOM attestations.
+
+All third-party GitHub Actions used by the repository are pinned to immutable commit SHAs. Dependabot opens bounded weekly update pull requests for Cargo and GitHub Actions dependencies.
+
+Controls that are **not** represented as complete merely because v0.1.0 shipped are tracked in the requirements/gap register. In particular, dedicated dependency-license/source policy, repository-level secret-scanning/push-protection verification, branch/ruleset enforcement evidence, and independent cross-provider backup/restore proof remain explicit follow-up work.
 
 Conventional Commits are used for repository history.
 
