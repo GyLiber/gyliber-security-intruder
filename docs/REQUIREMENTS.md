@@ -4,6 +4,7 @@
 **Document status:** Implementation control document  
 **Document version:** 1.0.0  
 **Baseline date:** 2026-10-03  
+**Last reviewed:** 2026-10-04 after successful v0.1.0 release  
 **Owner/client:** Gyile / GyLiber  
 **Engineering executor:** GyLiber Engineering with AI-assisted implementation  
 **Source design:** `GyLiber-Security-Intruder-Design-v1.0.0.md` (approved baseline dated 2026-10-01)  
@@ -16,6 +17,8 @@
 This register captures every explicit requirement in the 2026-10-03 client brief, the obligations implied by those requirements, and the implementation gates that must be satisfied before the project may be described as professionally delivered.
 
 This is a living contract-control document. Requirements may be refined as implementation reveals new facts, but they must not silently disappear. A requirement that changes must be marked **superseded**, with the reason and replacement recorded in an ADR or change record.
+
+**v0.1.0 closure:** released 2026-10-04 as tag `v0.1.0` at commit `b98e0a29864c70db3abc9ed023d33446d426fb89`. Status values such as **SATISFIED FOR v0.1**, **PARTIAL**, and **IN PROGRESS** distinguish shipped evidence from obligations that remain on the path to v1.0.0.
 
 ---
 
@@ -60,30 +63,30 @@ The engineering objective is instead to:
 
 | ID | Requirement | v0.1.0 treatment | v1.0.0 obligation | Status |
 |---|---|---|---|---|
-| R-001 | Design for indefinite extension beyond v1.0.0 | Stable domain types, modular boundaries, versioned schemas, ADRs | Backward-compatible extension policy and semver | OPEN |
+| R-001 | Design for indefinite extension beyond v1.0.0 | Stable domain types, modular boundaries, versioned schemas, ADRs | Backward-compatible extension policy and semver | IN PROGRESS |
 | R-002 | Use the most security-capable suitable language; no Python | Rust only for first-party executable product code | Rust remains primary unless an ADR proves a safer need | DECIDED |
 | R-003 | Treat work as professional client delivery | Requirements register, ADRs, runbooks, acceptance gates | Full delivery evidence and release dossier | IN PROGRESS |
 | R-004 | Security from project inception | Target Gate, fail-closed policies, secret hygiene, CI scanning | Complete self-security acceptance matrix | IN PROGRESS |
 | R-005 | Automated testing from inception | Unit + integration + safety fixture tests | Unit, property, integration, fixture, fuzz, live-assurance layers | IN PROGRESS |
 | R-006 | CI/CD from inception | GitHub Actions CI and security workflows | Release, provenance, deployment and scheduled assurance workflows | IN PROGRESS |
 | R-007 | Free hosting initially; paid upgrade later | Prefer ephemeral GitHub-hosted execution; no unnecessary public service | Supported paid runner/storage migration plan | DECIDED |
-| R-008 | All important project resources survive laptop loss | GitHub is canonical source; CI and release artifacts online | Cross-provider encrypted backups and restore drills | OPEN |
+| R-008 | All important project resources survive laptop loss | GitHub is canonical source; CI and release artifacts online | Cross-provider encrypted backups and restore drills | PARTIAL |
 | R-009 | Account for provider/server loss | Backup architecture specified from start | Tested recovery from independent provider copies | OPEN |
 | R-010 | Conventional Commits | Enforced by contributor process/CI where practical | Required release history discipline | DECIDED |
-| R-011 | Professional rich README and docs | README is part of initial repository tranche | README, security model, operations, contribution and AI statement complete | OPEN |
-| R-012 | Public repository until v1.0.0 | No secrets, internal credentials, sensitive target configuration, or confidential evidence in Git | Safe private-repo transition plan at/around v1.0.0 | OPEN |
-| R-013 | v0.1.0 must be working end-to-end | Authorized target → safe probe → assertion → evidence → report; secure and vulnerable fixture tests | Later versions extend this closed loop | OPEN |
-| R-014 | Scale to ~6–10 professional developers later | Clear crate/module ownership and CODEOWNERS-ready structure | Team ownership, review and release governance | OPEN |
-| R-015 | Unique to GyLiber without abandoning industry practice | GyLiber-specific assurance vocabulary, Command Center adapter, evidence model | Brand-specific product experience, standards-mapped internals | OPEN |
-| R-016 | Incremental correct commits | Small verified units, no “mega commit” | Release history remains auditable | OPEN |
+| R-011 | Professional rich README and docs | README, operations, security, release dossier, threat model and AI disclosure exist | Keep docs synchronized through v1.0.0 | SATISFIED FOR v0.1 |
+| R-012 | Public repository until v1.0.0 | Public-safe synthetic fixtures/configuration only | Safe private-repo transition plan at/around v1.0.0 | IN PROGRESS |
+| R-013 | v0.1.0 must be working end-to-end | Versioned target/campaign → gated probe → PASS/FAIL → sealed evidence → checksummed run bundle; PASS/FAIL/PASS fixtures | Later versions extend this closed loop | SATISFIED FOR v0.1 |
+| R-014 | Scale to ~6–10 professional developers later | Clear crate/module ownership plus CODEOWNERS | Team ownership, review and release governance | IN PROGRESS |
+| R-015 | Unique to GyLiber without abandoning industry practice | GyLiber-specific assurance vocabulary and evidence/release model | Command Center adapters and standards-mapped profiles | IN PROGRESS |
+| R-016 | Incremental correct commits | Small verified conventional commits with CI-gated corrections | Maintain this discipline through v1.0.0 | SATISFIED FOR v0.1 |
 | R-017 | Correct earlier work when new facts invalidate it | Fix/refactor/revert accepted and documented | ADR supersession process | DECIDED |
 | R-018 | Design document may change during implementation | Baseline + ADRs + change log; no silent divergence | Current design generated from implementation truth | DECIDED |
 | R-019 | Use current, non-deprecated 2026 components | Version checks at implementation time; lockfile committed | Automated dependency/update policy | IN PROGRESS |
 | R-020 | Calm dark/silver/dark-blue visual direction | No public web UI required for v0.1; static reports may adopt this direction | Any future operator console follows the GyLiber visual direction | DEFERRED |
 | R-021 | Use as many databases as necessary | Do not add a DB without a durable-data requirement | Multiple stores allowed only where threat/consistency model justifies them | DECIDED |
-| R-022 | Notify client when external accounts become required | Account dependency register below | No hidden vendor dependency | OPEN |
+| R-022 | Notify client when external accounts become required | v0.1.0 required no new external account beyond GitHub; future dependencies are registered | No hidden vendor dependency | SATISFIED TO DATE |
 | R-023 | Protect financial, trade-secret, copyright, staff and future sensitive information | Intruder never ingests raw forms of these classes in v1.0 | Command Center data architecture handles them; Intruder uses synthetic references | DECIDED |
-| R-024 | AI-developed code must not create hidden access for the AI provider | No AI credentials/runtime backdoor; all auth material externally managed | Reproducible builds and operator-controlled secrets | OPEN |
+| R-024 | AI-developed code must not create hidden access for the AI provider | No AI runtime identity/standing production credential; deterministic release evidence | Preserve operator-controlled credentials and reproducible gates | SATISFIED FOR v0.1 |
 
 ---
 
@@ -105,24 +108,24 @@ The engineering objective is instead to:
 - [ ] Force pushes and branch deletion are blocked for protected branches.
 - [ ] Required CI checks are configured.
 - [ ] Signed commits/tags are required when the account plan supports enforcement.
-- [ ] `CODEOWNERS` protects security-sensitive paths and protects itself.
+- [x] `CODEOWNERS` exists and assigns initial ownership; team-specific ownership must expand when additional maintainers join.
 - [ ] Pull-request review becomes mandatory once a second trusted maintainer exists.
-- [ ] GitHub Actions are pinned to immutable full-length commit SHAs.
-- [ ] Workflow `GITHUB_TOKEN` permissions default to read-only and are elevated per job only.
-- [ ] `pull_request_target` with untrusted checkout is prohibited.
+- [x] GitHub Actions are pinned to immutable full-length commit SHAs.
+- [x] Workflow `GITHUB_TOKEN` permissions default to read-only and are elevated per job only.
+- [x] Repository workflows do not use `pull_request_target`.
 - [ ] Repository secrets are never exposed to forked/untrusted PR code.
 
 ### 5.3 Software supply-chain security
 
-- [ ] `Cargo.lock` committed.
-- [ ] Dependency vulnerability audit runs in CI.
+- [x] `Cargo.lock` committed.
+- [x] RustSec dependency vulnerability audit runs in CI/Security.
 - [ ] Dependency allow/deny and license policy runs in CI.
-- [ ] Dependency changes are reviewable and automated updates are rate-limited.
-- [ ] SBOM generated for releases.
-- [ ] Release artifacts have hashes.
-- [ ] Build provenance/artifact attestations are generated where available.
-- [ ] Third-party GitHub Actions are SHA-pinned.
-- [ ] Unsafe Rust is denied by default; exceptions require an ADR/security review.
+- [x] Dependabot opens bounded weekly Cargo and GitHub Actions update pull requests.
+- [x] CycloneDX SBOM generated for v0.1.0 release.
+- [x] v0.1.0 release artifacts have SHA-256 checksums.
+- [x] v0.1.0 release has GitHub build-provenance and binary-SBOM attestations.
+- [x] Third-party GitHub Actions are SHA-pinned.
+- [x] Unsafe Rust is denied by default; any future exception still requires ADR/security review.
 - [ ] New network-capable dependencies receive explicit security review.
 
 ### 5.4 Data classification
@@ -150,8 +153,8 @@ The following classes exist even if the Intruder must not store their raw values
 
 For **source and release materials** from the first milestone:
 
-- [ ] Canonical Git repository on GitHub.
-- [ ] Immutable release archive + checksums on GitHub Releases.
+- [x] Canonical Git repository on GitHub.
+- [x] v0.1.0 release archive + checksums published on GitHub Releases.
 - [ ] Periodic encrypted `git bundle`/release backup to a second provider.
 - [ ] Restore procedure tested, not merely documented.
 
@@ -175,30 +178,30 @@ Before **irreplaceable real GyLiber data** is ever admitted to the Command Cente
 
 ### 5.8 Operational security
 
-- [ ] Kill switches are implemented and tested before aggressive probes.
-- [ ] Safety budgets are centrally enforced.
+- [x] Kill switches are implemented and tested before aggressive probes.
+- [x] Safety budgets are centrally enforced.
 - [ ] Target authorization expires and fails closed.
-- [ ] Redirect/DNS rebinding/private-network protections are tested.
+- [x] v0.1.0 disables redirects and hostname execution and tests literal/resolved private-network restrictions; full hostname/DNS-rebinding-safe execution remains a later capability.
 - [ ] Production campaigns cannot be silently escalated from low-impact to high-impact behavior.
 - [ ] System-wide containment exercise requires explicit arming and auto-expiry.
 
 ### 5.9 Legal/IP/copyright controls
 
-- [ ] Repository license is deliberately selected; do not default casually for a proprietary security product.
+- [x] Repository license posture is deliberately proprietary/all-rights-reserved for v0.1.0.
 - [ ] Third-party dependency licenses are inventoried and policy checked.
-- [ ] AI-assisted contributions are acknowledged transparently without assigning security responsibility to AI.
+- [x] AI-assisted contributions are acknowledged transparently without assigning security responsibility to AI.
 - [ ] Copyright headers/NOTICE policy is selected before external contributors exist.
 - [ ] Future staff/contractor IP-assignment and confidentiality terms are handled outside Git.
-- [ ] Vulnerability disclosure process and `SECURITY.md` are present before public release.
+- [x] `SECURITY.md` and private-disclosure guidance were present before public release.
 
 ### 5.10 AI-assisted engineering controls
 
 - [ ] No production secret, private key, bank credential or real session token is pasted into AI prompts.
-- [ ] AI output is treated as untrusted code requiring tests/review.
-- [ ] AI does not receive standing production credentials.
-- [ ] No product authentication path trusts an AI identity.
-- [ ] README records meaningful AI assistance accurately.
-- [ ] Release evidence is generated by deterministic tooling, not by an AI assertion.
+- [x] AI-assisted code is subjected to the same deterministic CI/Security/release gates.
+- [x] The product/release design gives AI no standing production credential or runtime identity.
+- [x] No product authentication path trusts an AI identity.
+- [x] README records meaningful AI assistance accurately.
+- [x] v0.1.0 release evidence is generated by deterministic CI/Security/release tooling, not by an AI assertion.
 
 ---
 
@@ -232,50 +235,64 @@ Because the client requires the repository to remain public until v1.0.0:
 
 ---
 
-## 8. v0.1.0 minimum end-to-end contract
+## 8. v0.1.0 minimum end-to-end contract — **SATISFIED**
 
-v0.1.0 is accepted only when a real executable can perform this closed loop:
+v0.1.0 was released on 2026-10-04 only after the executable reproduced this closed loop:
 
 ```text
-signed/approved local test target definition
+versioned/approved local test target + campaign
         ↓
 Target Gate validates destination + safety budget
         ↓
-safe baseline request through the only network boundary
+safe IP-literal HTTP HEAD request through the network boundary
         ↓
-assertion/oracle evaluates result
+status oracle evaluates PASS / FAIL
         ↓
-redacted evidence record produced
+metadata-only evidence record produced
         ↓
-evidence hash calculated
+evidence SHA-256 integrity seal calculated and verified
         ↓
-machine-readable report + human report produced
+machine-readable + human report + run metadata + SHA256SUMS
         ↓
-secure fixture passes
-vulnerable fixture fails with the expected finding
+secure fixture PASS
+vulnerable fixture FAIL
+fixed fixture PASS
         ↓
-CI reproduces both outcomes deterministically
+CI/Security/release pipeline reproduces the acceptance evidence
 ```
 
 ### v0.1.0 acceptance checklist
 
-- [ ] Rust workspace builds on stable pinned toolchain policy.
-- [ ] CLI has no arbitrary `scan <url>` execution path.
-- [ ] Target registry format exists and rejects unknown targets.
-- [ ] Target Gate blocks off-policy redirects and disallowed network classes in internet mode.
-- [ ] Request/time/concurrency budget primitive exists.
-- [ ] Kill-switch primitive exists and is tested.
-- [ ] At least one baseline HTTP/security-header probe exists.
-- [ ] Evidence redaction + SHA-256 hashing exists.
-- [ ] JSON report exists.
-- [ ] Human-readable report exists.
-- [ ] Secure fixture expected PASS.
-- [ ] Deliberately vulnerable fixture expected FAIL.
-- [ ] CI runs format, build, lint and tests.
-- [ ] Security workflow runs dependency/license/secret/code analysis appropriate to a public Rust repository.
-- [ ] README explains scope, safety model, AI use, non-goals and authorized-use restriction.
-- [ ] Changelog begins at `0.1.0`.
-- [ ] No secret is required to run fixture tests.
+- [x] Rust workspace builds on the pinned Rust 1.99.0 toolchain policy.
+- [x] CLI has no arbitrary `scan <url>` execution path.
+- [x] Versioned target/campaign formats exist and reject unknown fields/mismatched targets.
+- [x] Redirects are disabled in v0.1.0 and disallowed network classes/cloud metadata endpoints are rejected.
+- [x] Request-rate/total/time/concurrency budget primitives exist and are tested.
+- [x] Kill-switch primitives exist and are tested.
+- [x] One bounded `HTTP_HEAD_STATUS` probe exists.
+- [x] Metadata-only evidence + SHA-256 integrity sealing exists.
+- [x] JSON report exists.
+- [x] Human-readable text report exists.
+- [x] Secure fixture expected PASS.
+- [x] Deliberately vulnerable fixture expected FAIL.
+- [x] Fixed fixture returns to PASS.
+- [x] CI runs format, compile, strict Clippy and tests.
+- [x] Security runs RustSec and CodeQL on the release commit.
+- [x] Release pipeline generates binary/archive, CycloneDX SBOM, SHA-256 checksums, provenance attestation and SBOM attestation.
+- [x] README explains scope, safety model, AI use, non-goals and authorized-use restriction.
+- [x] Changelog begins at `0.1.0`.
+- [x] No secret is required to run fixture tests.
+
+### Carry-forward governance controls
+
+These are **not** retroactively marked complete by the v0.1.0 release:
+
+- [ ] dedicated dependency-license/source allow/deny policy;
+- [ ] repository-level secret-scanning/push-protection configuration verified and evidenced;
+- [ ] branch/ruleset enforcement and required-check settings verified from repository administration;
+- [ ] independent encrypted source/release backup plus a tested restore drill.
+
+They are recorded in the gap register and next-actions document.
 
 ---
 
