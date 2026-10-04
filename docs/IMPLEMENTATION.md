@@ -7,6 +7,7 @@
 **Owner:** GyLiber / GyLiber Engineering  
 **Companion application:** `GyLiber/gyliber-command-center`  
 **Source baseline:** `GyLiber-Security-Intruder-Design-v1.0.0.md` (2026-10-01)  
+**Implementation checkpoint:** v0.1.0 released 2026-10-04 at commit `b98e0a29864c70db3abc9ed023d33446d426fb89`; this document continues to describe the architecture path to v1.0.0.  
 
 ---
 
@@ -359,20 +360,23 @@ Runs on pull requests and pushes:
 6. documentation tests;
 7. architecture/safety invariant tests.
 
-### 10.2 `security.yml`
+### 10.2 `security.yml` — implemented v0.1.0 controls
 
-Runs on change and schedule:
+Runs on pushes, pull requests, schedule and manual dispatch:
 
-- dependency vulnerability audit;
-- license/source policy (`cargo-deny`);
-- secret scan;
-- OpenSSF Scorecard where useful for the public repository;
-- selected sanitizer/fuzz/property regression jobs;
-- SBOM generation on release paths.
+- RustSec dependency vulnerability audit with warnings denied;
+- CodeQL Rust analysis using the `security-extended` query suite.
 
-### 10.3 `codeql.yml`
+The following remain explicit carry-forward governance/security work rather than being described as already implemented:
 
-Use GitHub CodeQL while the repository is public. Rust is supported. If the repository becomes private and GitHub Code Security is not funded, CodeQL availability must be re-evaluated and equivalent open CI scanning retained rather than silently losing analysis.
+- dependency license/source allow/deny policy (for example `cargo-deny`);
+- repository-level secret-scanning/push-protection verification;
+- sanitizer/property/fuzz expansion;
+- OpenSSF Scorecard if it adds useful signal at the project's scale.
+
+### 10.3 CodeQL placement
+
+CodeQL is implemented inside `security.yml`, not in a separate `codeql.yml`. If repository visibility or GitHub plan changes later make CodeQL unavailable, an equivalent open CI analysis path must replace it rather than silently dropping static security analysis.
 
 ### 10.4 Workflow hardening
 
@@ -385,31 +389,27 @@ Use GitHub CodeQL while the repository is public. Rust is supported. If the repo
 - build outputs are hashed;
 - release artifacts receive provenance/attestation where supported.
 
-### 10.5 Release pipeline
+### 10.5 Release pipeline — v0.1.0 implementation
 
 ```text
-PR
+push to main
  ↓
-CI + security checks
+normal CI + Security workflows
  ↓
-protected main
+release-request marker (.release/vX.Y.Z.json)
  ↓
-tag/release candidate
+independent release rebuild + tests
  ↓
-reproducible build
+CycloneDX SBOM + SHA-256 checksums
  ↓
-SBOM + checksums + provenance
+wait for exact-commit CI + RustSec + CodeQL success
  ↓
-staging assurance
+build-provenance attestation + binary-SBOM attestation
  ↓
-manual production authorization (when production exists)
- ↓
-bounded live assurance
- ↓
-release evidence
+GitHub Release + version tag
 ```
 
----
+The v0.1.0 release workflow uses least-privilege job permissions and refuses to overwrite an existing release tag.
 
 ## 11. Testing strategy
 
@@ -457,43 +457,29 @@ Fuzz parsers and the Target Gate before v1.0.0, prioritizing:
 
 ---
 
-## 12. v0.1.0 functional slice
+## 12. v0.1.0 functional slice — released
 
-The first real milestone is intentionally narrow and complete.
+The shipped v0.1.0 operator surface is intentionally narrow and complete.
 
 ### Commands
 
 ```text
-intruder target validate <target-id>
-intruder campaign validate <campaign-file>
-intruder campaign plan <campaign-file>
-intruder run <campaign-id>
-intruder report <run-id>
-intruder kill-switch status
+intruder target validate <target-file>
+intruder campaign validate --target <target-file> <campaign-file>
+intruder campaign plan --target <target-file> <campaign-file>
+intruder run --target <target-file> --campaign <campaign-file> --kill-switch <kill-switch-file> --run-id <id> --out-dir <new-directory>
+intruder kill-switch-status
 ```
 
 No `intruder scan https://arbitrary-host` command exists.
 
-### Initial probe family
+### Armed probe family
 
-`baseline.http-boundary` verifies bounded, non-destructive properties such as:
+v0.1.0 arms only `HTTP_HEAD_STATUS` against an approved IP-literal target. Redirects, automatic retries, ambient proxy inheritance and hostname execution are disabled. Response bodies and HTTP header values are not persisted.
 
-- expected status for public/protected fixture routes;
-- required security headers;
-- redirect stays within policy;
-- response size stays within budget.
+### Oracle and run bundle
 
-### Initial oracle
-
-Typed expected-response/security-header oracle.
-
-### Initial report
-
-- JSON machine report;
-- Markdown human report;
-- optional static HTML report after core behavior is stable.
-
----
+The oracle compares observed status with the typed expected status and records PASS or FAIL. A successful run writes a new directory containing `report.json`, `report.txt`, `run.json`, and `SHA256SUMS`. Evidence is metadata-only and SHA-256 sealed; the hash provides integrity detection, not signer identity.
 
 ## 13. Hosting and online execution
 
@@ -642,7 +628,9 @@ The Intruder may test whether boundaries protecting these classes work, but v1.0
 
 ## 19. Version roadmap
 
-### v0.1.0 — Closed-loop safety foundation
+### v0.1.0 — Closed-loop safety foundation — **RELEASED 2026-10-04**
+
+Authoritative tag: `v0.1.0` → `b98e0a29864c70db3abc9ed023d33446d426fb89`.
 
 - repository/workspace;
 - CI + security workflow;
@@ -739,9 +727,9 @@ The stable contracts to preserve are target authorization, campaign schema, evid
 
 ---
 
-## 21. Initial implementation order
+## 21. Historical v0.1.0 implementation order
 
-The repository should be built in these commit-sized steps:
+The following list was the initial commit-sized plan for v0.1.0. The release is now complete; actual commit names diverged where implementation evidence required fixes/refactors. This list is retained only as planning history, not as current next actions:
 
 1. `chore: initialize Rust workspace and repository policy`
 2. `ci: add formatting lint and test workflow`
