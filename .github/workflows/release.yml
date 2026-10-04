@@ -111,7 +111,20 @@ jobs:
           fi
 
           mkdir -p dist
-          cp "${SBOMS[0]}" "dist/intruder-v$VERSION.cdx.json"
+          SBOM_OUT="dist/intruder-v$VERSION.cdx.json"
+          cp "${SBOMS[0]}" "$SBOM_OUT"
+
+          RAW_UUID="${GITHUB_SHA:0:32}"
+          UUID="${RAW_UUID:0:8}-${RAW_UUID:8:4}-5${RAW_UUID:13:3}-8${RAW_UUID:17:3}-${RAW_UUID:20:12}"
+          SERIAL_NUMBER="urn:uuid:$UUID"
+          jq --arg serial "$SERIAL_NUMBER" '.serialNumber = $serial' "$SBOM_OUT" > "$SBOM_OUT.tmp"
+          mv "$SBOM_OUT.tmp" "$SBOM_OUT"
+
+          jq -e '
+            .bomFormat == "CycloneDX"
+            and (.specVersion | type == "string")
+            and (.serialNumber | startswith("urn:uuid:"))
+          ' "$SBOM_OUT" > /dev/null
 
       - name: Assemble release artifacts
         env:
