@@ -1,13 +1,15 @@
 # GyLiber Security Intruder
 ## Complete Product Design Document — v1.0.0
 
-**Proposed repository:** `GyLiber/gyliber-security-intruder`  
+**Repository:** `GyLiber/gyliber-security-intruder`  
 **Document version:** 1.0.0  
 **Design status:** Approved design baseline for implementation  
 **Design date:** 2026-10-01  
 **Owner:** GyLiber / GyLiber Engineering  
 **Companion system:** `GyLiber/gyliber-command-center`  
 **Security principle:** *Trust is demonstrated by controlled attempts to break the trust boundary, not by assuming the boundary works.*
+
+**Implementation checkpoint (2026-10-04):** v0.1.0 has been released. This document remains the approved **v1.0.0 product target**, not a claim that every capability described below is present in v0.1.0. The shipped v0.1.0 subset uses versioned but unsigned target/campaign documents, an IP-literal HTTP HEAD status probe, metadata-only evidence, and a constrained CLI. Signed authorization, authentication/session assurance, defense correlation, containment/recovery verification, and continuous scheduling remain later capability gates.
 
 ---
 
@@ -47,7 +49,7 @@ A conventional scan can demonstrate that a request reached an endpoint, that a r
 
 The Intruder therefore treats the target as a defensive system under adversarial test and runs controlled attack simulations against it. Every campaign is bounded by a target-authorization policy, a safety budget, a test-data policy, a maximum execution window, a network allowlist, a circuit breaker, and a kill switch.
 
-The first release is designed as a **modular Rust application** rather than an unnecessarily distributed system. It provides:
+The complete v1.0.0 product target is designed as a **modular Rust application** rather than an unnecessarily distributed system. At that target it provides:
 
 - signed and allowlisted target enrollment;
 - declarative adversarial campaigns;
