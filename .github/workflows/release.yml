@@ -1,0 +1,236 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/release.yml"
+      - ".release/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build v0.1 release candidate
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      tag: ${{ steps.meta.outputs.tag }}
+      publish_requested: ${{ steps.meta.outputs.publish_requested }}
+      artifact_name: ${{ steps.meta.outputs.artifact_name }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Resolve release metadata
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(sed -n '/^\[workspace.package\]/,/^\[/ s/^version = "\(.*\)"/\1/p' Cargo.toml)"
+          if [[ -z "$VERSION" ]]; then
+            echo "Unable to resolve workspace version" >&2
+            exit 1
+          fi
+
+          TAG="v$VERSION"
+          REQUEST=".release/$TAG.json"
+          PUBLISH_REQUESTED=false
+
+          if [[ -f "$REQUEST" ]]; then
+            jq -e --arg version "$VERSION" \
+              '.schema_version == 1 and .version == $version and .publish == true' \
+              "$REQUEST" > /dev/null
+            PUBLISH_REQUESTED=true
+          fi
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "publish_requested=$PUBLISH_REQUESTED" >> "$GITHUB_OUTPUT"
+          echo "artifact_name=gyliber-security-intruder-$TAG-release" >> "$GITHUB_OUTPUT"
+
+      - name: Install pinned Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f
+        with:
+          cache: true
+
+      - name: Verify committed dependency graph
+        run: cargo metadata --locked --format-version 1 --no-deps > /dev/null
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Check workspace
+        run: cargo check --workspace --all-targets --all-features --locked
+
+      - name: Lint workspace
+        run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+
+      - name: Test workspace
+        run: cargo test --workspace --all-features --locked
+
+      - name: Build release binary
+        env:
+          GYLIBER_SOURCE_COMMIT: ${{ github.sha }}
+        run: cargo build --release --locked -p intruder-cli
+
+      - name: Install pinned CycloneDX generator
+        run: cargo install cargo-cyclonedx --version 0.5.9 --locked
+
+      - name: Generate CycloneDX SBOM
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          export SOURCE_DATE_EPOCH="$(git show -s --format=%ct "$GITHUB_SHA")"
+          cargo cyclonedx \
+            --manifest-path crates/intruder-cli/Cargo.toml \
+            --format json \
+            --describe binaries \
+            --all-features \
+            --target x86_64-unknown-linux-gnu \
+            --override-filename "intruder-v$VERSION.cdx.json" \
+            --spec-version 1.5
+
+      - name: Assemble release artifacts
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TARGET="x86_64-unknown-linux-gnu"
+          BINARY="intruder-v$VERSION-$TARGET"
+          ARCHIVE="gyliber-security-intruder-v$VERSION-$TARGET.tar.gz"
+          SBOM="intruder-v$VERSION.cdx.json"
+
+          mkdir -p dist/package/bin
+          cp target/release/intruder "dist/$BINARY"
+          cp target/release/intruder dist/package/bin/intruder
+          cp README.md LICENSE SECURITY.md dist/package/
+          cp -R schemas campaigns policies fixtures dist/package/
+          mkdir -p dist/package/docs
+          cp docs/OPERATIONS.md "docs/releases/v$VERSION.md" dist/package/docs/
+          cp "crates/intruder-cli/$SBOM" "dist/$SBOM"
+
+          tar -C dist/package -czf "dist/$ARCHIVE" .
+          rm -rf dist/package
+
+          (
+            cd dist
+            sha256sum "$BINARY" "$ARCHIVE" "$SBOM" > SHA256SUMS
+          )
+
+      - name: Upload release candidate
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: ${{ steps.meta.outputs.artifact_name }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    name: Publish attested GitHub release
+    needs: build
+    if: needs.build.outputs.publish_requested == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      actions: read
+      contents: write
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+
+    steps:
+      - name: Checkout release documentation
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Download validated release candidate
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: ${{ needs.build.outputs.artifact_name }}
+          path: dist
+
+      - name: Require normal CI and Security gates for release commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for attempt in $(seq 1 90); do
+            RUNS="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$GITHUB_SHA&per_page=100")"
+
+            CI_STATUS="$(jq -r '[.workflow_runs[] | select(.name == "CI")][0].status // "missing"' <<< "$RUNS")"
+            CI_CONCLUSION="$(jq -r '[.workflow_runs[] | select(.name == "CI")][0].conclusion // ""' <<< "$RUNS")"
+            SECURITY_STATUS="$(jq -r '[.workflow_runs[] | select(.name == "Security")][0].status // "missing"' <<< "$RUNS")"
+            SECURITY_CONCLUSION="$(jq -r '[.workflow_runs[] | select(.name == "Security")][0].conclusion // ""' <<< "$RUNS")"
+
+            echo "CI=$CI_STATUS/$CI_CONCLUSION Security=$SECURITY_STATUS/$SECURITY_CONCLUSION"
+
+            if [[ "$CI_STATUS" == "completed" && "$CI_CONCLUSION" != "success" ]]; then
+              echo "Normal CI failed for release commit." >&2
+              exit 1
+            fi
+            if [[ "$SECURITY_STATUS" == "completed" && "$SECURITY_CONCLUSION" != "success" ]]; then
+              echo "Security workflow failed for release commit." >&2
+              exit 1
+            fi
+            if [[ "$CI_STATUS" == "completed" && "$CI_CONCLUSION" == "success" \
+               && "$SECURITY_STATUS" == "completed" && "$SECURITY_CONCLUSION" == "success" ]]; then
+              exit 0
+            fi
+
+            sleep 10
+          done
+
+          echo "Timed out waiting for CI and Security release gates." >&2
+          exit 1
+
+      - name: Attest release provenance
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+        with:
+          subject-path: |
+            dist/intruder-v${{ needs.build.outputs.version }}-x86_64-unknown-linux-gnu
+            dist/gyliber-security-intruder-v${{ needs.build.outputs.version }}-x86_64-unknown-linux-gnu.tar.gz
+
+      - name: Attest binary SBOM
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+        with:
+          subject-path: dist/intruder-v${{ needs.build.outputs.version }}-x86_64-unknown-linux-gnu
+          sbom-path: dist/intruder-v${{ needs.build.outputs.version }}.cdx.json
+
+      - name: Create GitHub release and version tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.build.outputs.tag }}
+          VERSION: ${{ needs.build.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "Release $TAG already exists; refusing to overwrite." >&2
+            exit 1
+          fi
+
+          gh release create "$TAG" \
+            "dist/intruder-v$VERSION-x86_64-unknown-linux-gnu" \
+            "dist/gyliber-security-intruder-v$VERSION-x86_64-unknown-linux-gnu.tar.gz" \
+            "dist/intruder-v$VERSION.cdx.json" \
+            "dist/SHA256SUMS" \
+            --target "$GITHUB_SHA" \
+            --title "GyLiber Security Intruder $TAG" \
+            --notes-file "docs/releases/$TAG.md"
