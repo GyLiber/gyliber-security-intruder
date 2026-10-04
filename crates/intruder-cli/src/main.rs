@@ -8,11 +8,9 @@ use clap::{Parser, Subcommand};
 use intruder_core::{BudgetTracker, KillSwitchState, Verdict};
 use intruder_evidence::{EvidenceError, EvidenceRecord, SealedEvidence};
 use intruder_net::{ExecutionGate, HttpExecutor, HttpProbeError};
-use intruder_policy::{
-    CampaignDocument, PolicyError, ProbeKind, TargetDocument,
-};
+use intruder_policy::{CampaignDocument, PolicyError, ProbeKind, TargetDocument};
 use intruder_report::RunReport;
-use serde::{de::DeserializeOwned, Deserialize};
+use serde::{Deserialize, de::DeserializeOwned};
 use thiserror::Error;
 
 #[derive(Debug, Parser)]
@@ -257,9 +255,7 @@ mod tests {
     };
 
     use intruder_core::{Environment, SafetyBudget};
-    use intruder_policy::{
-        CampaignProbe, CAMPAIGN_SCHEMA_VERSION, TARGET_SCHEMA_VERSION,
-    };
+    use intruder_policy::{CAMPAIGN_SCHEMA_VERSION, CampaignProbe, TARGET_SCHEMA_VERSION};
     use url::Url;
 
     use super::*;
@@ -279,10 +275,7 @@ mod tests {
         }
     }
 
-    fn test_campaign(
-        candidate_url: Url,
-        expected_status: u16,
-    ) -> CampaignDocument {
+    fn test_campaign(candidate_url: Url, expected_status: u16) -> CampaignDocument {
         CampaignDocument {
             schema_version: CAMPAIGN_SCHEMA_VERSION,
             campaign_id: "baseline-health".to_owned(),
