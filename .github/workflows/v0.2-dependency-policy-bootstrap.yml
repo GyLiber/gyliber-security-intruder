@@ -1,0 +1,32 @@
+name: v0.2 Dependency Policy Bootstrap
+
+on:
+  push:
+    branches: ["chore/v0.2-dependency-policy"]
+    paths:
+      - "deny.toml"
+      - ".github/workflows/v0.2-dependency-policy-bootstrap.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  policy:
+    name: Validate dependency licenses and sources
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Install pinned Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f
+        with:
+          cache: true
+
+      - name: Install pinned cargo-deny
+        run: cargo install cargo-deny --version 0.20.2 --locked
+
+      - name: Check dependency licenses, bans, and sources
+        run: cargo deny --all-features check licenses bans sources
