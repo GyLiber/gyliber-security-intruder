@@ -967,9 +967,9 @@ mod tests {
 
     #[test]
     fn wrong_signer_is_rejected() -> Result<(), SigningError> {
-        let signer = fixed_key("target-key", 7);
+        let signing_key = fixed_key("target-key", 7);
         let wrong_key = fixed_key("other-key", 9);
-        let signed = signed_target(&signer, 3)?;
+        let signed = signed_target(&signing_key, 3)?;
         let trust = trust_for(
             &wrong_key,
             KeyRole::TargetSigner,
