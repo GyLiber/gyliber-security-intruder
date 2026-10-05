@@ -6,6 +6,7 @@ members = [
   "crates/intruder-net",
   "crates/intruder-policy",
   "crates/intruder-report",
+  "crates/intruder-signing",
 ]
 resolver = "3"
 
@@ -19,6 +20,8 @@ publish = false
 
 [workspace.dependencies]
 clap = { version = "4.6.7", features = ["derive"] }
+ed25519-dalek = { version = "3.0.0", default-features = false, features = ["fast", "zeroize"] }
+getrandom = "0.4.3"
 reqwest = { version = "0.13.5", default-features = false, features = ["http2", "json", "rustls"] }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0"
@@ -27,6 +30,7 @@ thiserror = "2.0.21"
 tokio = { version = "~1.53", features = ["macros", "rt-multi-thread", "time"] }
 tracing = "0.1.44"
 url = { version = "2.5.8", features = ["serde"] }
+zeroize = { version = "1.9.0", features = ["derive"] }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
