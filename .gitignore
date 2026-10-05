@@ -12,3 +12,6 @@ reports/private/
 *.key
 *.p12
 *.pfx
+*.signing-key.json
+keys/private/
+trust/private/
