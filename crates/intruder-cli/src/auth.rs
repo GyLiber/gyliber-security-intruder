@@ -18,12 +18,12 @@ use zeroize::Zeroizing;
 
 use crate::CliError;
 
-pub const DEFAULT_DOCUMENT_VALIDITY_SECONDS: u64 = 86_400;
-pub const DEFAULT_TRUST_VALIDITY_SECONDS: u64 = 604_800;
+pub(crate) const DEFAULT_DOCUMENT_VALIDITY_SECONDS: u64 = 86_400;
+pub(crate) const DEFAULT_TRUST_VALIDITY_SECONDS: u64 = 604_800;
 const MAX_DOCUMENT_VALIDITY_SECONDS: u64 = 2_592_000;
 const MAX_TRUST_VALIDITY_SECONDS: u64 = 31_536_000;
 
-pub fn load_json<T>(path: &Path) -> Result<T, CliError>
+pub(crate) fn load_json<T>(path: &Path) -> Result<T, CliError>
 where
     T: DeserializeOwned,
 {
@@ -31,7 +31,7 @@ where
     Ok(serde_json::from_slice(&bytes)?)
 }
 
-pub fn write_json_new<T>(path: &Path, value: &T) -> Result<(), CliError>
+pub(crate) fn write_json_new<T>(path: &Path, value: &T) -> Result<(), CliError>
 where
     T: Serialize,
 {
@@ -40,7 +40,7 @@ where
     write_bytes_new(path, &bytes, false)
 }
 
-pub fn write_private_key_new(path: &Path, key: &SigningKeyFile) -> Result<(), CliError> {
+pub(crate) fn write_private_key_new(path: &Path, key: &SigningKeyFile) -> Result<(), CliError> {
     let mut bytes = Zeroizing::new(serde_json::to_vec_pretty(key)?);
     bytes.push(b'\n');
     write_bytes_new(path, &bytes, true)
@@ -64,14 +64,14 @@ fn write_bytes_new(path: &Path, bytes: &[u8], private: bool) -> Result<(), CliEr
     Ok(())
 }
 
-pub fn unix_now() -> Result<u64, CliError> {
+pub(crate) fn unix_now() -> Result<u64, CliError> {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|duration| duration.as_secs())
         .map_err(|_| CliError::ClockBeforeUnixEpoch)
 }
 
-pub fn document_expiry(now: u64, valid_for_seconds: u64) -> Result<u64, CliError> {
+pub(crate) fn document_expiry(now: u64, valid_for_seconds: u64) -> Result<u64, CliError> {
     checked_expiry(
         now,
         valid_for_seconds,
@@ -80,7 +80,7 @@ pub fn document_expiry(now: u64, valid_for_seconds: u64) -> Result<u64, CliError
     )
 }
 
-pub fn trust_expiry(now: u64, valid_for_seconds: u64) -> Result<u64, CliError> {
+pub(crate) fn trust_expiry(now: u64, valid_for_seconds: u64) -> Result<u64, CliError> {
     checked_expiry(
         now,
         valid_for_seconds,
@@ -106,7 +106,7 @@ fn checked_expiry(
         .ok_or(CliError::ValidityWindowOverflow)
 }
 
-pub fn bootstrap_lab_trust(
+pub(crate) fn bootstrap_lab_trust(
     public_key: &PublicKeyFile,
     target_id: &str,
     campaign_id: &str,
@@ -149,7 +149,7 @@ pub fn bootstrap_lab_trust(
     Ok(policy)
 }
 
-pub fn sign_target(
+pub(crate) fn sign_target(
     target: &TargetDocument,
     key: &SigningKeyFile,
     revision: u64,
@@ -171,7 +171,7 @@ pub fn sign_target(
     )?)
 }
 
-pub fn sign_campaign(
+pub(crate) fn sign_campaign(
     target: &TargetDocument,
     campaign: &CampaignDocument,
     key: &SigningKeyFile,
