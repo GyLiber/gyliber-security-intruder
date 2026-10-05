@@ -10,7 +10,6 @@ use std::fmt;
 use ed25519_dalek::{Signature, Signer, SigningKey, VerifyingKey};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use sha2::{Digest, Sha256};
 use thiserror::Error;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
