@@ -61,6 +61,16 @@ impl fmt::Debug for SigningKeyFile {
 }
 
 impl SigningKeyFile {
+    /// Validate the private key-file schema and Ed25519 secret bytes.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for an unsupported schema, empty key ID, or malformed
+    /// secret-key encoding.
+    pub fn validate(&self) -> Result<(), SigningError> {
+        validate_signing_key_file(self)
+    }
+
     #[must_use]
     pub const fn schema_version(&self) -> u16 {
         self.schema_version
@@ -79,6 +89,28 @@ pub struct PublicKeyFile {
     pub key_id: String,
     pub algorithm: SignatureAlgorithm,
     pub public_key_hex: String,
+}
+
+impl PublicKeyFile {
+    /// Validate the public key-file schema and Ed25519 public key.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for an unsupported schema, empty key ID, unsupported
+    /// algorithm, or malformed public-key encoding.
+    pub fn validate(&self) -> Result<(), SigningError> {
+        if self.schema_version != KEY_FILE_SCHEMA_VERSION {
+            return Err(SigningError::UnsupportedKeyFileSchema(
+                self.schema_version,
+            ));
+        }
+        validate_identifier(&self.key_id)?;
+        if self.algorithm != SignatureAlgorithm::Ed25519 {
+            return Err(SigningError::UnsupportedSignatureAlgorithm);
+        }
+        parse_public_key(&self.public_key_hex)?;
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
