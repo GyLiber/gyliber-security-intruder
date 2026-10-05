@@ -751,13 +751,13 @@ mod tests {
             &private,
         )?;
 
-        assert_eq!(
+        assert!(matches!(
             verify_signed_campaign(&signed_campaign, verified_target, &trust, NOW),
             Err(PolicyError::SignedCampaignRevisionMismatch {
                 envelope_revision: 2,
                 campaign_version: 1,
             })
-        );
+        ));
         Ok(())
     }
 }
