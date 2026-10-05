@@ -12,6 +12,7 @@ workspace = true
 
 [dependencies]
 intruder-core = { path = "../intruder-core" }
+intruder-signing = { path = "../intruder-signing" }
 serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
