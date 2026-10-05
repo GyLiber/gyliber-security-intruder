@@ -1,6 +1,6 @@
 name: v0.2 Signing Bootstrap
 
-# Validation trigger after workflow-generated normalization.
+# Validation trigger after workflow-generated normalization (pass 2).
 
 on:
   push:
