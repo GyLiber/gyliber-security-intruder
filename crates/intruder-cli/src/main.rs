@@ -155,7 +155,7 @@ enum CampaignCommand {
         target: PathBuf,
         campaign: PathBuf,
     },
-    /// Sign one validated campaign. Signed revision equals campaign_version.
+    /// Sign one validated campaign. Signed revision equals `campaign_version`.
     Sign {
         #[arg(long)]
         target: PathBuf,
