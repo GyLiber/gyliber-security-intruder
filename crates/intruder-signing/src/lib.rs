@@ -348,6 +348,56 @@ pub fn generate_keypair(
     Ok((private, public))
 }
 
+/// Verify that a private signing key corresponds to a currently trusted public
+/// key and is authorized for the requested role.
+///
+/// This is intended as a preflight before an operation whose output must be
+/// signed, so trust misconfiguration is detected before side effects occur.
+///
+/// # Errors
+///
+/// Returns an error if the private key is malformed, absent from the trust
+/// policy, outside its current validity window, revoked, assigned the wrong
+/// role, or does not match the trusted public key bytes.
+pub fn authorize_signing_key(
+    key: &SigningKeyFile,
+    trust_policy: &TrustPolicy,
+    now_unix: u64,
+    required_role: KeyRole,
+) -> Result<(), SigningError> {
+    key.validate()?;
+    trust_policy.validate()?;
+
+    let trusted_key = trust_policy.trusted_key(key.key_id())?;
+    if !trusted_key.roles.contains(&required_role) {
+        return Err(SigningError::RoleNotAuthorized {
+            key_id: key.key_id().to_owned(),
+            role: required_role,
+        });
+    }
+    if now_unix < trusted_key.not_before_unix || now_unix > trusted_key.not_after_unix {
+        return Err(SigningError::TrustedKeyOutsideValidity(
+            key.key_id().to_owned(),
+        ));
+    }
+    if trusted_key
+        .revoked_at_unix
+        .is_some_and(|revoked_at| now_unix >= revoked_at)
+    {
+        return Err(SigningError::TrustedKeyRevoked(key.key_id().to_owned()));
+    }
+
+    let signing_key = parse_signing_key(&key.secret_key_hex)?;
+    let trusted_public = parse_public_key(&trusted_key.public_key_hex)?;
+    if signing_key.verifying_key() != trusted_public {
+        return Err(SigningError::SigningKeyDoesNotMatchTrustedPublic(
+            key.key_id().to_owned(),
+        ));
+    }
+
+    Ok(())
+}
+
 /// Sign one canonical, domain-separated authorization envelope.
 ///
 /// # Errors
@@ -745,6 +795,8 @@ pub enum SigningError {
         revision: u64,
         minimum_revision: u64,
     },
+    #[error("private key does not match trusted public key for id: {0}")]
+    SigningKeyDoesNotMatchTrustedPublic(String),
     #[error("Ed25519 signature verification failed")]
     SignatureVerificationFailed,
     #[error("canonical JSON does not permit floating-point numbers")]
@@ -859,6 +911,35 @@ mod tests {
             String::from_utf8(canonical)
                 .map_err(|error| SigningError::Serialization(error.to_string()))?,
             r#"{"alpha":"first","zeta":2}"#
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn signing_key_preflight_requires_matching_trusted_public_key()
+    -> Result<(), SigningError> {
+        let key = fixed_key("evidence-key", 11);
+        let other = fixed_key("evidence-key", 12);
+        let public = public_for(&other)?;
+        let trust = TrustPolicy {
+            schema_version: TRUST_POLICY_SCHEMA_VERSION,
+            keys: vec![TrustedKey {
+                key_id: public.key_id,
+                algorithm: public.algorithm,
+                public_key_hex: public.public_key_hex,
+                roles: vec![KeyRole::EvidenceSigner],
+                not_before_unix: NOW - 100,
+                not_after_unix: NOW + 100,
+                revoked_at_unix: None,
+            }],
+            revision_floors: Vec::new(),
+        };
+
+        assert_eq!(
+            authorize_signing_key(&key, &trust, NOW, KeyRole::EvidenceSigner),
+            Err(SigningError::SigningKeyDoesNotMatchTrustedPublic(
+                "evidence-key".to_owned()
+            ))
         );
         Ok(())
     }
