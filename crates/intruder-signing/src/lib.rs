@@ -110,6 +110,12 @@ pub struct TrustPolicy {
 }
 
 impl TrustPolicy {
+    /// Validate trust-policy structure and embedded public keys.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for unsupported schemas, duplicate identities/floors,
+    /// invalid validity windows, missing roles, or malformed public keys.
     pub fn validate(&self) -> Result<(), SigningError> {
         if self.schema_version != TRUST_POLICY_SCHEMA_VERSION {
             return Err(SigningError::UnsupportedTrustPolicySchema(
@@ -277,6 +283,12 @@ struct UnsignedEnvelope<'a, T> {
     payload: &'a T,
 }
 
+/// Generate a new Ed25519 keypair using operating-system entropy.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the key identifier is empty or the operating
+    /// system cannot provide cryptographically secure random bytes.
 pub fn generate_keypair(
     key_id: impl Into<String>,
 ) -> Result<(SigningKeyFile, PublicKeyFile), SigningError> {
@@ -304,6 +316,12 @@ pub fn generate_keypair(
     Ok((private, public))
 }
 
+/// Sign one canonical, domain-separated authorization envelope.
+///
+/// # Errors
+///
+/// Returns an error for malformed key material, invalid revision/time
+/// metadata, or canonical serialization failure.
 #[allow(clippy::too_many_arguments)]
 pub fn sign_envelope<T>(
     payload: T,
@@ -360,6 +378,12 @@ where
     })
 }
 
+/// Verify trust role, validity, revocation, rollback floor, and signature.
+///
+/// # Errors
+///
+/// Returns an error when any structural, trust-policy, temporal, rollback, or
+/// Ed25519 verification check fails.
 pub fn verify_envelope<T>(
     envelope: &SignedEnvelope<T>,
     trust_policy: &TrustPolicy,
@@ -461,6 +485,15 @@ where
         .map_err(|_| SigningError::SignatureVerificationFailed)
 }
 
+/// Serialize the supported JSON subset into deterministic canonical bytes.
+///
+/// Object keys are sorted lexicographically, array order is preserved, and
+/// floating-point numbers are rejected.
+///
+/// # Errors
+///
+/// Returns an error if serialization fails or a floating-point JSON number is
+/// encountered.
 pub fn canonical_json_bytes<T>(value: &T) -> Result<Vec<u8>, SigningError>
 where
     T: Serialize,
@@ -560,8 +593,10 @@ fn validate_identifier(value: &str) -> Result<(), SigningError> {
 }
 
 fn parse_signing_key(secret_key_hex: &str) -> Result<SigningKey, SigningError> {
-    let secret = decode_hex::<32>(secret_key_hex)?;
-    Ok(SigningKey::from_bytes(&secret))
+    let mut secret = decode_hex::<32>(secret_key_hex)?;
+    let signing_key = SigningKey::from_bytes(&secret);
+    secret.zeroize();
+    Ok(signing_key)
 }
 
 fn parse_public_key(public_key_hex: &str) -> Result<VerifyingKey, SigningError> {
