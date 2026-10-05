@@ -100,9 +100,7 @@ impl PublicKeyFile {
     /// algorithm, or malformed public-key encoding.
     pub fn validate(&self) -> Result<(), SigningError> {
         if self.schema_version != KEY_FILE_SCHEMA_VERSION {
-            return Err(SigningError::UnsupportedKeyFileSchema(
-                self.schema_version,
-            ));
+            return Err(SigningError::UnsupportedKeyFileSchema(self.schema_version));
         }
         validate_identifier(&self.key_id)?;
         if self.algorithm != SignatureAlgorithm::Ed25519 {
@@ -164,7 +162,10 @@ impl TrustPolicy {
                 return Err(SigningError::InvalidTrustedKeyWindow(key.key_id.clone()));
             }
             parse_public_key(&key.public_key_hex)?;
-            if self.keys[..index].iter().any(|prior| prior.key_id == key.key_id) {
+            if self.keys[..index]
+                .iter()
+                .any(|prior| prior.key_id == key.key_id)
+            {
                 return Err(SigningError::DuplicateTrustedKey(key.key_id.clone()));
             }
         }
@@ -178,8 +179,7 @@ impl TrustPolicy {
                 });
             }
             if self.revision_floors[..index].iter().any(|prior| {
-                prior.document_kind == floor.document_kind
-                    && prior.document_id == floor.document_id
+                prior.document_kind == floor.document_kind && prior.document_id == floor.document_id
             }) {
                 return Err(SigningError::DuplicateRevisionFloor {
                     document_kind: floor.document_kind,
@@ -198,16 +198,10 @@ impl TrustPolicy {
             .ok_or_else(|| SigningError::UntrustedKey(key_id.to_owned()))
     }
 
-    fn minimum_revision(
-        &self,
-        kind: DocumentKind,
-        document_id: &str,
-    ) -> Result<u64, SigningError> {
+    fn minimum_revision(&self, kind: DocumentKind, document_id: &str) -> Result<u64, SigningError> {
         self.revision_floors
             .iter()
-            .find(|floor| {
-                floor.document_kind == kind && floor.document_id == document_id
-            })
+            .find(|floor| floor.document_kind == kind && floor.document_id == document_id)
             .map(|floor| floor.minimum_revision)
             .ok_or_else(|| SigningError::MissingRevisionFloor {
                 document_kind: kind,
@@ -316,11 +310,11 @@ struct UnsignedEnvelope<'a, T> {
 }
 
 /// Generate a new Ed25519 keypair using operating-system entropy.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when the key identifier is empty or the operating
-    /// system cannot provide cryptographically secure random bytes.
+///
+/// # Errors
+///
+/// Returns an error when the key identifier is empty or the operating
+/// system cannot provide cryptographically secure random bytes.
 pub fn generate_keypair(
     key_id: impl Into<String>,
 ) -> Result<(SigningKeyFile, PublicKeyFile), SigningError> {
@@ -748,15 +742,9 @@ pub enum SigningError {
     #[error("signed envelope time window is invalid")]
     InvalidEnvelopeWindow,
     #[error("signed envelope is not valid until {not_before_unix}, current time is {now_unix}")]
-    EnvelopeNotYetValid {
-        not_before_unix: u64,
-        now_unix: u64,
-    },
+    EnvelopeNotYetValid { not_before_unix: u64, now_unix: u64 },
     #[error("signed envelope expired at {expires_at_unix}, current time is {now_unix}")]
-    EnvelopeExpired {
-        expires_at_unix: u64,
-        now_unix: u64,
-    },
+    EnvelopeExpired { expires_at_unix: u64, now_unix: u64 },
     #[error("untrusted signing key: {0}")]
     UntrustedKey(String),
     #[error("trusted key has no roles: {0}")]
@@ -916,8 +904,7 @@ mod tests {
     }
 
     #[test]
-    fn signing_key_preflight_requires_matching_trusted_public_key()
-    -> Result<(), SigningError> {
+    fn signing_key_preflight_requires_matching_trusted_public_key() -> Result<(), SigningError> {
         let key = fixed_key("evidence-key", 11);
         let other = fixed_key("evidence-key", 12);
         let public = public_for(&other)?;

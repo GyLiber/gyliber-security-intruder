@@ -126,9 +126,7 @@ enum TrustCommand {
 #[derive(Debug, Subcommand)]
 enum TargetCommand {
     /// Validate one unsigned target document while authoring it.
-    Validate {
-        target: PathBuf,
-    },
+    Validate { target: PathBuf },
     /// Sign one validated target document.
     Sign {
         target: PathBuf,
@@ -208,9 +206,7 @@ enum CliError {
     MissingRunId,
     #[error("system clock is before the Unix epoch")]
     ClockBeforeUnixEpoch,
-    #[error(
-        "{purpose} validity must be 1..={maximum} seconds; received {seconds}"
-    )]
+    #[error("{purpose} validity must be 1..={maximum} seconds; received {seconds}")]
     InvalidValidityWindow {
         purpose: &'static str,
         seconds: u64,
@@ -482,8 +478,7 @@ async fn execute_run(
     let (signed_target, signed_campaign, trust, now) =
         load_signed_authorization(target_path, campaign_path, trust_policy_path)?;
     let verified_target = verify_signed_target(&signed_target, &trust, now)?;
-    let verified_campaign =
-        verify_signed_campaign(&signed_campaign, verified_target, &trust, now)?;
+    let verified_campaign = verify_signed_campaign(&signed_campaign, verified_target, &trust, now)?;
 
     let evidence_key = load_json::<SigningKeyFile>(evidence_key_path)?;
     authorize_signing_key(&evidence_key, &trust, now, KeyRole::EvidenceSigner)?;
@@ -797,8 +792,7 @@ mod tests {
     }
 
     #[test]
-    fn signed_authorization_plan_is_verified_and_non_executing()
-    -> Result<(), Box<dyn Error>> {
+    fn signed_authorization_plan_is_verified_and_non_executing() -> Result<(), Box<dyn Error>> {
         const NOW: u64 = 1_800_000_000;
         let (private, public) = generate_keypair("fixture-authority")?;
         let trust = bootstrap_lab_trust(

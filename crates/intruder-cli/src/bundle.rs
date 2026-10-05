@@ -5,8 +5,8 @@ use std::{
 };
 
 use intruder_evidence::{
-    BundleFileDigest, BundleManifest, SignedBundleManifest, content_sha256_hex,
-    verify_bundle_file, verify_signed_bundle_manifest,
+    BundleFileDigest, BundleManifest, SignedBundleManifest, content_sha256_hex, verify_bundle_file,
+    verify_signed_bundle_manifest,
 };
 use intruder_report::RunReport;
 use intruder_signing::{
@@ -81,13 +81,7 @@ pub(crate) fn write_signed_run_bundle(
     trust_policy: &TrustPolicy,
     now_unix: u64,
 ) -> Result<(), CliError> {
-    let bundle = build_signed_run_bundle(
-        report,
-        metadata,
-        evidence_key,
-        trust_policy,
-        now_unix,
-    )?;
+    let bundle = build_signed_run_bundle(report, metadata, evidence_key, trust_policy, now_unix)?;
 
     fs::create_dir(path)?;
     let write_result = (|| -> Result<(), CliError> {
@@ -324,10 +318,7 @@ mod tests {
         ))
     }
 
-    fn trust(
-        public: intruder_signing::PublicKeyFile,
-        now: u64,
-    ) -> TrustPolicy {
+    fn trust(public: intruder_signing::PublicKeyFile, now: u64) -> TrustPolicy {
         TrustPolicy {
             schema_version: TRUST_POLICY_SCHEMA_VERSION,
             keys: vec![TrustedKey {

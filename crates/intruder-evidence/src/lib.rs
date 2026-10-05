@@ -217,7 +217,6 @@ impl SealedEvidence {
     }
 }
 
-
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct BundleFileDigest {
@@ -567,10 +566,7 @@ mod tests {
         Ok(())
     }
 
-
-    fn signing_trust(
-        public: intruder_signing::PublicKeyFile,
-    ) -> intruder_signing::TrustPolicy {
+    fn signing_trust(public: intruder_signing::PublicKeyFile) -> intruder_signing::TrustPolicy {
         intruder_signing::TrustPolicy {
             schema_version: intruder_signing::TRUST_POLICY_SCHEMA_VERSION,
             keys: vec![intruder_signing::TrustedKey {

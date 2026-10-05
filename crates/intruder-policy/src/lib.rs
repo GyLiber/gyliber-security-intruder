@@ -236,7 +236,6 @@ impl CampaignDocument {
     }
 }
 
-
 pub type SignedTargetDocument = SignedEnvelope<TargetDocument>;
 pub type SignedCampaignDocument = SignedEnvelope<CampaignDocument>;
 
@@ -654,9 +653,7 @@ mod tests {
         );
         Ok(())
     }
-    fn signing_trust(
-        public: intruder_signing::PublicKeyFile,
-    ) -> intruder_signing::TrustPolicy {
+    fn signing_trust(public: intruder_signing::PublicKeyFile) -> intruder_signing::TrustPolicy {
         intruder_signing::TrustPolicy {
             schema_version: intruder_signing::TRUST_POLICY_SCHEMA_VERSION,
             keys: vec![intruder_signing::TrustedKey {
@@ -719,10 +716,7 @@ mod tests {
         let verified_campaign =
             verify_signed_campaign(&signed_campaign, verified_target, &trust, NOW)?;
 
-        assert_eq!(
-            verified_campaign.document().campaign_id,
-            "baseline-health"
-        );
+        assert_eq!(verified_campaign.document().campaign_id, "baseline-health");
         Ok(())
     }
 
@@ -766,5 +760,4 @@ mod tests {
         );
         Ok(())
     }
-
 }

@@ -8,10 +8,12 @@ use std::{
 #[cfg(unix)]
 use std::os::unix::fs::OpenOptionsExt;
 
-use intruder_policy::{CampaignDocument, SignedCampaignDocument, SignedTargetDocument, TargetDocument};
+use intruder_policy::{
+    CampaignDocument, SignedCampaignDocument, SignedTargetDocument, TargetDocument,
+};
 use intruder_signing::{
-    DocumentKind, KeyRole, PublicKeyFile, RevisionFloor, SigningKeyFile, TrustPolicy, TrustedKey,
-    TRUST_POLICY_SCHEMA_VERSION, sign_envelope,
+    DocumentKind, KeyRole, PublicKeyFile, RevisionFloor, SigningKeyFile,
+    TRUST_POLICY_SCHEMA_VERSION, TrustPolicy, TrustedKey, sign_envelope,
 };
 use serde::{Serialize, de::DeserializeOwned};
 use zeroize::Zeroizing;
