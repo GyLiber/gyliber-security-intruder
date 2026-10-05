@@ -1,12 +1,16 @@
 //! Redacted evidence records and deterministic integrity envelopes.
 
 pub use intruder_core::Verdict;
+use intruder_signing::{
+    DocumentKind, KeyRole, SignedEnvelope, SigningError, TrustPolicy, verify_envelope,
+};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use thiserror::Error;
 
 const EVIDENCE_HASH_DOMAIN: &[u8] = b"gyliber-security-intruder:evidence:v1";
 pub const EVIDENCE_SCHEMA_VERSION: u16 = 1;
+pub const BUNDLE_MANIFEST_SCHEMA_VERSION: u16 = 1;
 
 /// Explicit statement of what data class an evidence record is allowed to contain.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -213,8 +217,256 @@ impl SealedEvidence {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct BundleFileDigest {
+    path: String,
+    sha256: String,
+}
+
+impl BundleFileDigest {
+    #[must_use]
+    pub fn from_bytes(path: impl Into<String>, bytes: &[u8]) -> Self {
+        Self {
+            path: path.into(),
+            sha256: content_sha256_hex(bytes),
+        }
+    }
+
+    #[must_use]
+    pub fn path(&self) -> &str {
+        &self.path
+    }
+
+    #[must_use]
+    pub fn sha256(&self) -> &str {
+        &self.sha256
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct BundleManifest {
+    schema_version: u16,
+    run_id: String,
+    target_id: String,
+    campaign_id: String,
+    campaign_version: u32,
+    tool_version: String,
+    source_commit: String,
+    files: Vec<BundleFileDigest>,
+}
+
+impl BundleManifest {
+    #[must_use]
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        run_id: impl Into<String>,
+        target_id: impl Into<String>,
+        campaign_id: impl Into<String>,
+        campaign_version: u32,
+        tool_version: impl Into<String>,
+        source_commit: impl Into<String>,
+        files: Vec<BundleFileDigest>,
+    ) -> Self {
+        Self {
+            schema_version: BUNDLE_MANIFEST_SCHEMA_VERSION,
+            run_id: run_id.into(),
+            target_id: target_id.into(),
+            campaign_id: campaign_id.into(),
+            campaign_version,
+            tool_version: tool_version.into(),
+            source_commit: source_commit.into(),
+            files,
+        }
+    }
+
+    /// Validate manifest identity and file-digest invariants.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for unsupported schema versions, empty identifiers,
+    /// invalid campaign versions, unsafe/duplicate paths, or malformed SHA-256
+    /// digests.
+    pub fn validate(&self) -> Result<(), EvidenceError> {
+        if self.schema_version != BUNDLE_MANIFEST_SCHEMA_VERSION {
+            return Err(EvidenceError::UnsupportedBundleManifestSchema(
+                self.schema_version,
+            ));
+        }
+        for (field, value) in [
+            ("run_id", self.run_id.as_str()),
+            ("target_id", self.target_id.as_str()),
+            ("campaign_id", self.campaign_id.as_str()),
+            ("tool_version", self.tool_version.as_str()),
+            ("source_commit", self.source_commit.as_str()),
+        ] {
+            if value.trim().is_empty() {
+                return Err(EvidenceError::MissingBundleManifestField(field));
+            }
+        }
+        if self.campaign_version == 0 {
+            return Err(EvidenceError::InvalidBundleCampaignVersion);
+        }
+        if self.files.is_empty() {
+            return Err(EvidenceError::EmptyBundleManifest);
+        }
+
+        for (index, file) in self.files.iter().enumerate() {
+            if !is_safe_bundle_path(&file.path) {
+                return Err(EvidenceError::UnsafeBundlePath(file.path.clone()));
+            }
+            if !is_sha256_hex(&file.sha256) {
+                return Err(EvidenceError::MalformedBundleDigest(file.path.clone()));
+            }
+            if self.files[..index]
+                .iter()
+                .any(|prior| prior.path == file.path)
+            {
+                return Err(EvidenceError::DuplicateBundlePath(file.path.clone()));
+            }
+        }
+
+        Ok(())
+    }
+
+    #[must_use]
+    pub fn run_id(&self) -> &str {
+        &self.run_id
+    }
+
+    #[must_use]
+    pub fn target_id(&self) -> &str {
+        &self.target_id
+    }
+
+    #[must_use]
+    pub fn campaign_id(&self) -> &str {
+        &self.campaign_id
+    }
+
+    #[must_use]
+    pub const fn campaign_version(&self) -> u32 {
+        self.campaign_version
+    }
+
+    #[must_use]
+    pub fn tool_version(&self) -> &str {
+        &self.tool_version
+    }
+
+    #[must_use]
+    pub fn source_commit(&self) -> &str {
+        &self.source_commit
+    }
+
+    #[must_use]
+    pub fn files(&self) -> &[BundleFileDigest] {
+        &self.files
+    }
+}
+
+pub type SignedBundleManifest = SignedEnvelope<BundleManifest>;
+
+/// Verify a signed evidence-bundle manifest and bind the envelope to the run.
+///
+/// # Errors
+///
+/// Returns an error when the evidence signer is untrusted/expired/revoked, the
+/// Ed25519 signature is invalid, the envelope is the wrong document kind or
+/// run ID, or the manifest itself is malformed.
+pub fn verify_signed_bundle_manifest<'a>(
+    signed: &'a SignedBundleManifest,
+    trust_policy: &TrustPolicy,
+    now_unix: u64,
+) -> Result<&'a BundleManifest, EvidenceError> {
+    if signed.document_kind() != DocumentKind::EvidenceManifest {
+        return Err(EvidenceError::SignedManifestKindMismatch);
+    }
+
+    verify_envelope(signed, trust_policy, now_unix, KeyRole::EvidenceSigner)?;
+    let manifest = signed.payload();
+    manifest.validate()?;
+
+    if signed.document_id() != manifest.run_id {
+        return Err(EvidenceError::SignedManifestRunIdMismatch {
+            envelope_id: signed.document_id().to_owned(),
+            manifest_run_id: manifest.run_id.clone(),
+        });
+    }
+
+    Ok(manifest)
+}
+
+/// Verify one bundle file against a validated manifest entry.
+///
+/// # Errors
+///
+/// Returns an error if the named path is absent or its SHA-256 digest differs.
+pub fn verify_bundle_file(
+    manifest: &BundleManifest,
+    path: &str,
+    bytes: &[u8],
+) -> Result<(), EvidenceError> {
+    let file = manifest
+        .files
+        .iter()
+        .find(|file| file.path == path)
+        .ok_or_else(|| EvidenceError::BundlePathNotManifested(path.to_owned()))?;
+    let actual = content_sha256_hex(bytes);
+    if file.sha256 != actual {
+        return Err(EvidenceError::BundleDigestMismatch {
+            path: path.to_owned(),
+        });
+    }
+    Ok(())
+}
+
+fn is_safe_bundle_path(path: &str) -> bool {
+    !path.is_empty()
+        && path != "."
+        && path != ".."
+        && !path.contains('/')
+        && !path.contains('\\')
+        && !path.contains('\0')
+}
+
+fn is_sha256_hex(value: &str) -> bool {
+    value.len() == 64
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+}
+
 #[derive(Debug, Error)]
 pub enum EvidenceError {
+    #[error(transparent)]
+    Signing(#[from] SigningError),
+    #[error("unsupported bundle manifest schema: {0}")]
+    UnsupportedBundleManifestSchema(u16),
+    #[error("bundle manifest field is required: {0}")]
+    MissingBundleManifestField(&'static str),
+    #[error("bundle manifest campaign version must be positive")]
+    InvalidBundleCampaignVersion,
+    #[error("bundle manifest must contain at least one file")]
+    EmptyBundleManifest,
+    #[error("unsafe bundle path: {0}")]
+    UnsafeBundlePath(String),
+    #[error("duplicate bundle path: {0}")]
+    DuplicateBundlePath(String),
+    #[error("malformed SHA-256 digest for bundle path: {0}")]
+    MalformedBundleDigest(String),
+    #[error("signed bundle manifest uses the wrong document kind")]
+    SignedManifestKindMismatch,
+    #[error("signed manifest run id mismatch: envelope {envelope_id}, manifest {manifest_run_id}")]
+    SignedManifestRunIdMismatch {
+        envelope_id: String,
+        manifest_run_id: String,
+    },
+    #[error("bundle path is not present in signed manifest: {0}")]
+    BundlePathNotManifested(String),
+    #[error("bundle digest verification failed: {path}")]
+    BundleDigestMismatch { path: String },
     #[error("evidence serialization failed: {0}")]
     Serialization(#[from] serde_json::Error),
     #[error("evidence integrity verification failed")]
@@ -310,6 +562,83 @@ mod tests {
         assert!(matches!(
             sealed.verify(),
             Err(EvidenceError::IntegrityMismatch)
+        ));
+        Ok(())
+    }
+
+    fn signing_trust(public: intruder_signing::PublicKeyFile) -> intruder_signing::TrustPolicy {
+        intruder_signing::TrustPolicy {
+            schema_version: intruder_signing::TRUST_POLICY_SCHEMA_VERSION,
+            keys: vec![intruder_signing::TrustedKey {
+                key_id: public.key_id,
+                algorithm: public.algorithm,
+                public_key_hex: public.public_key_hex,
+                roles: vec![intruder_signing::KeyRole::EvidenceSigner],
+                not_before_unix: 1_799_999_000,
+                not_after_unix: 1_800_100_000,
+                revoked_at_unix: None,
+            }],
+            revision_floors: Vec::new(),
+        }
+    }
+
+    fn manifest() -> BundleManifest {
+        BundleManifest::new(
+            "run-001",
+            "fixture-secure",
+            "baseline-health",
+            1,
+            "0.2.0",
+            "abc123",
+            vec![
+                BundleFileDigest::from_bytes("report.json", b"{\"ok\":true}\n"),
+                BundleFileDigest::from_bytes("report.txt", b"PASS\n"),
+                BundleFileDigest::from_bytes("run.json", b"{\"run\":\"run-001\"}\n"),
+            ],
+        )
+    }
+
+    #[test]
+    fn signed_bundle_manifest_authenticates_files() -> Result<(), Box<dyn std::error::Error>> {
+        const NOW: u64 = 1_800_000_000;
+        let (private, public) = intruder_signing::generate_keypair("evidence-authority")?;
+        let trust = signing_trust(public);
+        let signed = intruder_signing::sign_envelope(
+            manifest(),
+            intruder_signing::DocumentKind::EvidenceManifest,
+            "run-001",
+            1,
+            NOW - 10,
+            NOW - 10,
+            NOW + 1_000,
+            &private,
+        )?;
+
+        let verified = verify_signed_bundle_manifest(&signed, &trust, NOW)?;
+        verify_bundle_file(verified, "report.txt", b"PASS\n")?;
+        Ok(())
+    }
+
+    #[test]
+    fn signed_bundle_manifest_detects_file_tampering() -> Result<(), Box<dyn std::error::Error>> {
+        const NOW: u64 = 1_800_000_000;
+        let (private, public) = intruder_signing::generate_keypair("evidence-authority")?;
+        let trust = signing_trust(public);
+        let signed = intruder_signing::sign_envelope(
+            manifest(),
+            intruder_signing::DocumentKind::EvidenceManifest,
+            "run-001",
+            1,
+            NOW - 10,
+            NOW - 10,
+            NOW + 1_000,
+            &private,
+        )?;
+
+        let verified = verify_signed_bundle_manifest(&signed, &trust, NOW)?;
+        assert!(matches!(
+            verify_bundle_file(verified, "report.txt", b"FAIL\n"),
+            Err(EvidenceError::BundleDigestMismatch { .. })
         ));
         Ok(())
     }
