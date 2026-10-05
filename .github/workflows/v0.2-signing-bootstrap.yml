@@ -1,5 +1,7 @@
 name: v0.2 Signing Bootstrap
 
+# Validation trigger after workflow-generated normalization.
+
 on:
   push:
     branches: ["feat/v0.2-signing-foundation"]
