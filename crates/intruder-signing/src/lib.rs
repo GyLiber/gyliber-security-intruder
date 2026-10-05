@@ -428,8 +428,12 @@ where
             role: required_role,
         });
     }
+    let trust_time = match envelope.document_kind {
+        DocumentKind::EvidenceManifest => envelope.issued_at_unix,
+        DocumentKind::Target | DocumentKind::Campaign => now_unix,
+    };
     if envelope.issued_at_unix < trusted_key.not_before_unix
-        || now_unix > trusted_key.not_after_unix
+        || trust_time > trusted_key.not_after_unix
     {
         return Err(SigningError::TrustedKeyOutsideValidity(
             envelope.key_id.clone(),
@@ -437,7 +441,7 @@ where
     }
     if trusted_key
         .revoked_at_unix
-        .is_some_and(|revoked_at| now_unix >= revoked_at)
+        .is_some_and(|revoked_at| trust_time >= revoked_at)
     {
         return Err(SigningError::TrustedKeyRevoked(envelope.key_id.clone()));
     }
@@ -974,6 +978,37 @@ mod tests {
             })
         );
         Ok(())
+    }
+
+    #[test]
+    fn evidence_signature_survives_later_key_expiry() -> Result<(), SigningError> {
+        let key = fixed_key("evidence-key", 11);
+        let signed = sign_envelope(
+            fixture(),
+            DocumentKind::EvidenceManifest,
+            "run-001",
+            1,
+            NOW - 100,
+            NOW - 100,
+            u64::MAX,
+            &key,
+        )?;
+        let public = public_for(&key)?;
+        let trust = TrustPolicy {
+            schema_version: TRUST_POLICY_SCHEMA_VERSION,
+            keys: vec![TrustedKey {
+                key_id: public.key_id,
+                algorithm: public.algorithm,
+                public_key_hex: public.public_key_hex,
+                roles: vec![KeyRole::EvidenceSigner],
+                not_before_unix: NOW - 1_000,
+                not_after_unix: NOW - 1,
+                revoked_at_unix: None,
+            }],
+            revision_floors: Vec::new(),
+        };
+
+        verify_envelope(&signed, &trust, NOW + 50_000, KeyRole::EvidenceSigner)
     }
 
     #[test]
