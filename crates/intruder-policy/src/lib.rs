@@ -3,6 +3,9 @@
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 use intruder_core::{Environment, SafetyBudget};
+use intruder_signing::{
+    DocumentKind, KeyRole, SignedEnvelope, SigningError, TrustPolicy, verify_envelope,
+};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use url::Url;
@@ -233,8 +236,128 @@ impl CampaignDocument {
     }
 }
 
+
+pub type SignedTargetDocument = SignedEnvelope<TargetDocument>;
+pub type SignedCampaignDocument = SignedEnvelope<CampaignDocument>;
+
+#[derive(Debug, Clone, Copy)]
+pub struct VerifiedTarget<'a> {
+    document: &'a TargetDocument,
+}
+
+impl<'a> VerifiedTarget<'a> {
+    #[must_use]
+    pub const fn document(self) -> &'a TargetDocument {
+        self.document
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct VerifiedCampaign<'a> {
+    document: &'a CampaignDocument,
+}
+
+impl<'a> VerifiedCampaign<'a> {
+    #[must_use]
+    pub const fn document(self) -> &'a CampaignDocument {
+        self.document
+    }
+}
+
+/// Verify a signed target envelope and bind the signature to the target ID.
+///
+/// # Errors
+///
+/// Returns an error when the cryptographic envelope is untrusted, expired,
+/// revoked, rolled back, the wrong document kind, or its signed identity does
+/// not match the target payload.
+pub fn verify_signed_target<'a>(
+    signed: &'a SignedTargetDocument,
+    trust_policy: &TrustPolicy,
+    now_unix: u64,
+) -> Result<VerifiedTarget<'a>, PolicyError> {
+    if signed.document_kind() != DocumentKind::Target {
+        return Err(PolicyError::SignedDocumentKindMismatch {
+            expected: DocumentKind::Target,
+            actual: signed.document_kind(),
+        });
+    }
+
+    verify_envelope(signed, trust_policy, now_unix, KeyRole::TargetSigner)?;
+
+    let document = signed.payload();
+    document.validate()?;
+    if signed.document_id() != document.target.target_id {
+        return Err(PolicyError::SignedDocumentIdMismatch {
+            envelope_id: signed.document_id().to_owned(),
+            payload_id: document.target.target_id.clone(),
+        });
+    }
+
+    Ok(VerifiedTarget { document })
+}
+
+/// Verify a signed campaign and bind it to one verified target.
+///
+/// # Errors
+///
+/// Returns an error when the campaign signature is untrusted, its identity or
+/// revision does not match the payload, or the campaign is invalid for the
+/// verified target.
+pub fn verify_signed_campaign<'a>(
+    signed: &'a SignedCampaignDocument,
+    target: VerifiedTarget<'_>,
+    trust_policy: &TrustPolicy,
+    now_unix: u64,
+) -> Result<VerifiedCampaign<'a>, PolicyError> {
+    if signed.document_kind() != DocumentKind::Campaign {
+        return Err(PolicyError::SignedDocumentKindMismatch {
+            expected: DocumentKind::Campaign,
+            actual: signed.document_kind(),
+        });
+    }
+
+    verify_envelope(signed, trust_policy, now_unix, KeyRole::CampaignSigner)?;
+
+    let document = signed.payload();
+    if signed.document_id() != document.campaign_id {
+        return Err(PolicyError::SignedDocumentIdMismatch {
+            envelope_id: signed.document_id().to_owned(),
+            payload_id: document.campaign_id.clone(),
+        });
+    }
+    if signed.revision() != u64::from(document.campaign_version) {
+        return Err(PolicyError::SignedCampaignRevisionMismatch {
+            envelope_revision: signed.revision(),
+            campaign_version: document.campaign_version,
+        });
+    }
+
+    document.validate_against(target.document())?;
+    Ok(VerifiedCampaign { document })
+}
+
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum PolicyError {
+    #[error(transparent)]
+    Signing(#[from] SigningError),
+    #[error("signed document kind mismatch: expected {expected:?}, found {actual:?}")]
+    SignedDocumentKindMismatch {
+        expected: DocumentKind,
+        actual: DocumentKind,
+    },
+    #[error("signed document id mismatch: envelope {envelope_id}, payload {payload_id}")]
+    SignedDocumentIdMismatch {
+        envelope_id: String,
+        payload_id: String,
+    },
+    #[error(
+        "signed campaign revision {envelope_revision} does not match campaign version {campaign_version}"
+    )]
+    SignedCampaignRevisionMismatch {
+        envelope_revision: u64,
+        campaign_version: u32,
+    },
     #[error("unsupported target schema version: {0}")]
     UnsupportedTargetSchemaVersion(u16),
     #[error("unsupported campaign schema version: {0}")]
@@ -531,4 +654,117 @@ mod tests {
         );
         Ok(())
     }
+    fn signing_trust(
+        public: intruder_signing::PublicKeyFile,
+    ) -> intruder_signing::TrustPolicy {
+        intruder_signing::TrustPolicy {
+            schema_version: intruder_signing::TRUST_POLICY_SCHEMA_VERSION,
+            keys: vec![intruder_signing::TrustedKey {
+                key_id: public.key_id,
+                algorithm: public.algorithm,
+                public_key_hex: public.public_key_hex,
+                roles: vec![
+                    intruder_signing::KeyRole::TargetSigner,
+                    intruder_signing::KeyRole::CampaignSigner,
+                ],
+                not_before_unix: 1_799_999_000,
+                not_after_unix: 1_800_100_000,
+                revoked_at_unix: None,
+            }],
+            revision_floors: vec![
+                intruder_signing::RevisionFloor {
+                    document_kind: intruder_signing::DocumentKind::Target,
+                    document_id: "fixture-secure".to_owned(),
+                    minimum_revision: 1,
+                },
+                intruder_signing::RevisionFloor {
+                    document_kind: intruder_signing::DocumentKind::Campaign,
+                    document_id: "baseline-health".to_owned(),
+                    minimum_revision: 1,
+                },
+            ],
+        }
+    }
+
+    #[test]
+    fn signed_target_and_campaign_bind_to_payload_identity()
+    -> Result<(), Box<dyn std::error::Error>> {
+        const NOW: u64 = 1_800_000_000;
+        let (private, public) = intruder_signing::generate_keypair("fixture-authority")?;
+        let trust = signing_trust(public);
+        let target = target_document();
+        let signed_target = intruder_signing::sign_envelope(
+            target,
+            intruder_signing::DocumentKind::Target,
+            "fixture-secure",
+            1,
+            NOW - 10,
+            NOW - 10,
+            NOW + 1_000,
+            &private,
+        )?;
+        let verified_target = verify_signed_target(&signed_target, &trust, NOW)?;
+
+        let campaign = campaign_document()?;
+        let signed_campaign = intruder_signing::sign_envelope(
+            campaign,
+            intruder_signing::DocumentKind::Campaign,
+            "baseline-health",
+            1,
+            NOW - 10,
+            NOW - 10,
+            NOW + 1_000,
+            &private,
+        )?;
+        let verified_campaign =
+            verify_signed_campaign(&signed_campaign, verified_target, &trust, NOW)?;
+
+        assert_eq!(
+            verified_campaign.document().campaign_id,
+            "baseline-health"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn signed_campaign_revision_must_match_payload_version()
+    -> Result<(), Box<dyn std::error::Error>> {
+        const NOW: u64 = 1_800_000_000;
+        let (private, public) = intruder_signing::generate_keypair("fixture-authority")?;
+        let mut trust = signing_trust(public);
+        trust.revision_floors[1].minimum_revision = 2;
+
+        let signed_target = intruder_signing::sign_envelope(
+            target_document(),
+            intruder_signing::DocumentKind::Target,
+            "fixture-secure",
+            1,
+            NOW - 10,
+            NOW - 10,
+            NOW + 1_000,
+            &private,
+        )?;
+        let verified_target = verify_signed_target(&signed_target, &trust, NOW)?;
+
+        let signed_campaign = intruder_signing::sign_envelope(
+            campaign_document()?,
+            intruder_signing::DocumentKind::Campaign,
+            "baseline-health",
+            2,
+            NOW - 10,
+            NOW - 10,
+            NOW + 1_000,
+            &private,
+        )?;
+
+        assert_eq!(
+            verify_signed_campaign(&signed_campaign, verified_target, &trust, NOW),
+            Err(PolicyError::SignedCampaignRevisionMismatch {
+                envelope_revision: 2,
+                campaign_version: 1,
+            })
+        );
+        Ok(())
+    }
+
 }
