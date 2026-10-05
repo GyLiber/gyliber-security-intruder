@@ -5,11 +5,15 @@ on:
     branches: ["feat/v0.2-signing-foundation"]
     paths:
       - "Cargo.toml"
-      - "crates/intruder-signing/**"
+      - "crates/**"
       - ".github/workflows/v0.2-signing-bootstrap.yml"
 
 permissions:
   contents: write
+
+concurrency:
+  group: v0.2-signing-bootstrap
+  cancel-in-progress: true
 
 jobs:
   validate:
