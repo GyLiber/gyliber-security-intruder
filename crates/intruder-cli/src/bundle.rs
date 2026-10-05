@@ -21,7 +21,7 @@ const SIGNED_MANIFEST_FILE: &str = "manifest.signed.json";
 const CHECKSUM_FILE: &str = "SHA256SUMS";
 
 #[derive(Debug, Serialize)]
-pub struct RunBundleMetadata {
+pub(crate) struct RunBundleMetadata {
     schema_version: u16,
     run_id: String,
     campaign_id: String,
@@ -38,7 +38,7 @@ pub struct RunBundleMetadata {
 impl RunBundleMetadata {
     #[allow(clippy::too_many_arguments)]
     #[must_use]
-    pub fn new(
+    pub(crate) fn new(
         run_id: &str,
         target_id: &str,
         campaign_id: &str,
@@ -73,7 +73,7 @@ struct RunBundle {
     checksums: Vec<u8>,
 }
 
-pub fn write_signed_run_bundle(
+pub(crate) fn write_signed_run_bundle(
     path: &Path,
     report: &RunReport,
     metadata: &RunBundleMetadata,
@@ -108,7 +108,7 @@ pub fn write_signed_run_bundle(
     write_result
 }
 
-pub fn verify_run_bundle(
+pub(crate) fn verify_run_bundle(
     path: &Path,
     trust_policy: &TrustPolicy,
     now_unix: u64,
