@@ -2,7 +2,7 @@
 
 > Controlled adversarial security assurance for GyLiber-owned systems.
 
-**Release:** v0.1.0 — closed-loop safety foundation  
+**Release candidate:** v0.2.0 — integrity and authenticity  
 **Primary implementation language:** Rust  
 **License posture:** proprietary / all rights reserved until GyLiber adopts a different written license  
 **Authorization posture:** GyLiber-owned or explicitly authorized targets only
@@ -55,67 +55,58 @@ GyLiber Security Intruder is not intended to provide or become:
 
 No finite test suite can establish absolute security. Release evidence applies to the specific controls, revisions, environments and campaigns that were actually tested.
 
-## v0.1.0 objective
+## Release progression
 
-The first release is intentionally narrow and end-to-end. Its acceptance path is:
+v0.1.0 established the closed-loop safety foundation: bounded target policy, Target Gate enforcement, one HTTP HEAD status probe, PASS/FAIL evidence, and tamper-detecting hashes.
 
-```text
-approved local target definition
-        |
-        v
-policy + Target Gate
-        |
-        v
-bounded baseline HTTP request
-        |
-        v
-typed oracle
-        |
-        v
-redacted evidence
-        |
-        v
-integrity hash
-        |
-        v
-JSON + human report
-```
-
-The fixture laboratory must demonstrate both sides of the contract:
+v0.2.0 adds an explicit cryptographic trust layer around that loop:
 
 ```text
-secure fixture      -> expected PASS
-vulnerable fixture  -> expected FAIL
-fixed fixture       -> expected PASS
+signed target + signed campaign
+        ↓
+signer role / validity / revocation / rollback verification
+        ↓
+existing Target Gate + safety budgets + kill switch
+        ↓
+bounded HTTP HEAD probe
+        ↓
+PASS / FAIL evidence
+        ↓
+signed evidence-bundle manifest
+        ↓
+independent bundle verification
 ```
 
-A scanner that can only report green is not accepted as security evidence.
+A syntactically valid document is no longer sufficient to authorize execution. The signature, trusted key role, time window, revocation state, revision floor, and envelope/payload identity must all verify first.
 
 ## Current delivery status
 
-v0.1.0 is the first release line of GyLiber Security Intruder. It provides a bounded, operator-executable assurance loop with:
+v0.2.0 is the current minor-release candidate. It retains the v0.1.0 closed-loop safety controls and adds:
 
-- versioned target and campaign documents;
-- strict target/campaign validation and non-executing planning;
-- explicit kill-switch snapshots and centrally enforced safety budgets;
-- IP-literal, no-redirect/no-retry HTTP HEAD probing through the Target Gate;
-- PASS/FAIL oracle evaluation;
-- metadata-only evidence with SHA-256 integrity sealing;
-- checksummed create-new run bundles;
-- repository-controlled secure → PASS, vulnerable → FAIL, fixed → PASS fixture proof;
-- CI, RustSec, CodeQL, SBOM, checksum, provenance-attestation and SBOM-attestation release controls.
+- canonical domain-separated Ed25519 signed envelopes;
+- explicit target, campaign, and evidence signer roles;
+- target/campaign validity windows and revocation checks;
+- minimum-revision rollback protection;
+- envelope identity binding to target/campaign payload identity;
+- campaign envelope revision binding to `campaign_version`;
+- evidence-signer preflight before network execution;
+- signed evidence-bundle manifests;
+- independent bundle verification that detects file tampering and unexpected bundle contents;
+- private-key create-new handling, Unix `0600` output, redacted debug output, and zeroizing secret buffers;
+- dependency license/source policy enforced with pinned `cargo-deny` in the Security workflow.
 
-The release remains intentionally narrow: hostname execution, signed target/campaign authorization, authentication/session campaigns, broader API/authorization testing, defense correlation, containment/recovery verification, and confidential durable evidence storage are not yet armed.
+The release remains deliberately constrained: the armed network probe is still IP-literal `HTTP_HEAD_STATUS`; hostname/DNS execution, redirects, authentication/session campaigns, broader authorization/API testing, defense correlation, containment/recovery verification, and confidential durable evidence storage remain unarmed.
 
-Release material:
+Release and operating material:
 
-- [v0.1.0 release notes](docs/releases/v0.1.0.md)
-- [v0.1.0 release evidence dossier](docs/releases/v0.1.0-evidence.md)
-- [v0.1.0 operations](docs/OPERATIONS.md)
-- [v0.1.0 delivery closure](docs/PROGRESS_2026-10-04.md)
-- [v0.1.0 threat model](docs/THREAT_MODEL.md)
-- [Disaster recovery and backup posture](docs/DISASTER_RECOVERY.md)
-- [Post-v0.1.0 next steps](docs/NEXT_STEPS.md)
+- [v0.2.0 release notes](docs/releases/v0.2.0.md)
+- [v0.2.0 release evidence dossier](docs/releases/v0.2.0-evidence.md)
+- [v0.2.0 operations](docs/OPERATIONS.md)
+- [v0.2.0 client demonstration](docs/CLIENT_DEMO_v0.2.0.md)
+- [v0.2.0 key management](docs/KEY_MANAGEMENT.md)
+- [v0.2.0 threat model](docs/THREAT_MODEL_v0.2.0.md)
+- [v0.2.0 progress report](docs/PROGRESS_2026-10-08.md)
+- [Post-v0.2.0 next steps](docs/NEXT_STEPS.md)
 
 ## Architecture direction
 
@@ -128,19 +119,21 @@ Planned crate boundaries:
 - `intruder-net` — the only production owner of outbound HTTP, including the Target Gate;
 - `intruder-evidence` — redaction, canonical evidence and integrity manifests;
 - `intruder-report` — machine and human reports;
-- `intruder-cli` — constrained operator interface.
+- `intruder-signing` — canonical signed envelopes, Ed25519 trust roles, validity, revocation and rollback protection;
+- `intruder-cli` — constrained operator interface, signing/key authoring and independent bundle verification.
 
 These boundaries are intended to scale to a future multi-developer team without prematurely distributing the runtime.
 
 ## Development and release controls
 
-The automated v0.1.0 release gates are:
+The automated v0.2.0 release gates are:
 
 - `cargo fmt --check`;
 - workspace compilation;
 - unit/integration/fixture tests;
 - Clippy with warnings denied;
 - RustSec dependency audit;
+- dependency license/source policy through pinned `cargo-deny`;
 - CodeQL Rust analysis;
 - release rebuild from the pinned toolchain;
 - CycloneDX SBOM generation;
@@ -149,7 +142,7 @@ The automated v0.1.0 release gates are:
 
 All third-party GitHub Actions used by the repository are pinned to immutable commit SHAs. Dependabot opens bounded weekly update pull requests for Cargo and GitHub Actions dependencies.
 
-Controls that are **not** represented as complete merely because v0.1.0 shipped are tracked in the requirements/gap register. In particular, dedicated dependency-license/source policy, repository-level secret-scanning/push-protection verification, branch/ruleset enforcement evidence, and independent cross-provider backup/restore proof remain explicit follow-up work.
+Repository-level secret-scanning/push-protection verification, branch/ruleset enforcement evidence, and independent cross-provider backup/restore proof remain explicit governance follow-ups; they are not silently treated as complete by the v0.2.0 release.
 
 Conventional Commits are used for repository history.
 
@@ -171,7 +164,7 @@ Real security findings and sensitive evidence belong in an access-controlled sys
 
 ## Hosting posture
 
-v0.1.0 does not require a permanently exposed control-plane service.
+v0.2.0 does not require a permanently exposed control-plane service.
 
 The initial free deployment model is:
 
@@ -200,7 +193,7 @@ Do not use it against unrelated third-party systems.
 
 The planned path to v1.0.0 is capability-gated rather than calendar-gated.
 
-v0.1.0 establishes the closed-loop safety foundation. Later minor releases add signed campaign integrity, authentication/session assurance, authorization/API testing, detection correlation, containment/recovery, extended safe adversarial coverage, durable assurance operations and final hardening.
+v0.1.0 established the closed-loop safety foundation. v0.2.0 adds cryptographic authorization and evidence authenticity. Later minor releases add synthetic authentication/session assurance, authorization/API testing, detection correlation, containment/recovery, extended safe adversarial coverage, durable assurance operations and final hardening.
 
 The security gates are authoritative; version numbers may change if implementation evidence requires it.
 
