@@ -21,12 +21,13 @@ Until a dedicated private disclosure channel is established, the repository owne
 
 | Line | Support status |
 |---|---|
-| v0.1.x | Supported; only the latest patch release in this line receives fixes |
-| `main` | Active development toward v0.2.0 |
+| v0.2.x | Supported; only the latest patch release in this line receives fixes |
+| v0.1.x | Superseded by v0.2.x |
+| `main` | Active development toward v0.3.0 |
 
 The project remains pre-1.0, so compatibility may change between minor versions when a security boundary requires it. Release notes and migration guidance must document externally material changes.
 
-v0.1.0 release artifacts are distributed with SHA-256 checksums, a CycloneDX SBOM, build-provenance attestation, and binary-SBOM attestation.
+Release artifacts are distributed with SHA-256 checksums, a CycloneDX SBOM, build-provenance attestation, and binary-SBOM attestation. v0.2.0 additionally requires dependency license/source policy success before release publication.
 
 ## Authorization boundary
 

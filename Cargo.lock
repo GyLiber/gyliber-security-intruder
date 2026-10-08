@@ -691,7 +691,7 @@ dependencies = [
 
 [[package]]
 name = "intruder-cli"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "clap",
  "intruder-core",
@@ -710,7 +710,7 @@ dependencies = [
 
 [[package]]
 name = "intruder-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "serde",
  "thiserror",
@@ -718,7 +718,7 @@ dependencies = [
 
 [[package]]
 name = "intruder-evidence"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "intruder-core",
  "intruder-signing",
@@ -730,7 +730,7 @@ dependencies = [
 
 [[package]]
 name = "intruder-net"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "intruder-core",
  "intruder-policy",
@@ -742,7 +742,7 @@ dependencies = [
 
 [[package]]
 name = "intruder-policy"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "intruder-core",
  "intruder-signing",
@@ -753,7 +753,7 @@ dependencies = [
 
 [[package]]
 name = "intruder-report"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "intruder-evidence",
  "serde",
@@ -761,7 +761,7 @@ dependencies = [
 
 [[package]]
 name = "intruder-signing"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "ed25519-dalek",
  "getrandom 0.4.3",

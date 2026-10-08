@@ -4,7 +4,7 @@
 **Purpose:** Record engineering, security, operations, legal/IP and organizational considerations that are easy for a first-time product owner to miss, so they remain visible throughout GyLiber's growth.  
 **Status:** Living document  
 **Baseline date:** 2026-10-03  
-**Last reviewed:** 2026-10-04 after v0.1.0 release  
+**Last reviewed:** 2026-10-08 for v0.2.0 release candidate  
 
 ---
 
@@ -534,7 +534,7 @@ Do not create bureaucracy before it has an operational purpose, but do not leave
 - [x] `CONTRIBUTING.md` with conventional commits and security-sensitive change rules.
 - [x] AI-assisted engineering disclosure/policy in README and requirements.
 - [x] `CODEOWNERS` with initial repository ownership.
-- [ ] Dependency/license allow/deny policy — carry forward before expanding supply-chain trust.
+- [x] Dependency/license/source policy enforced through pinned `cargo-deny` in the Security workflow.
 - [x] SHA-pinned Actions.
 - [ ] Repository-level secret-scanning/push-protection configuration verified and evidenced — code alone cannot prove the GitHub setting.
 - [x] SBOM, checksums, build-provenance attestation and binary-SBOM attestation for v0.1.0.
@@ -542,7 +542,7 @@ Do not create bureaucracy before it has an operational purpose, but do not leave
 - [x] Disaster-recovery document — `docs/DISASTER_RECOVERY.md`; independent backup automation/restore proof remains open.
 - [x] Explicit statement that real business/banking/staff data does not belong in the Intruder v0.1.0/v1.0 test-data posture.
 
-**Release closure:** v0.1.0 shipped with the two repository-governance gaps above still explicit. They are next actions, not silently treated as completed controls.
+**v0.2.0 update:** the dependency license/source policy gap is closed. Repository-level secret-scanning/push-protection verification and independent backup/restore evidence remain open; branch/ruleset protection also requires repository-administration action.
 
 ---
 

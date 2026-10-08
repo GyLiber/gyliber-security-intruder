@@ -4,7 +4,7 @@
 **Document status:** Implementation control document  
 **Document version:** 1.0.0  
 **Baseline date:** 2026-10-03  
-**Last reviewed:** 2026-10-04 after successful v0.1.0 release  
+**Last reviewed:** 2026-10-08 for v0.2.0 release candidate  
 **Owner/client:** Gyile / GyLiber  
 **Engineering executor:** GyLiber Engineering with AI-assisted implementation  
 **Source design:** [`docs/DESIGN.md`](DESIGN.md) — approved v1.0.0 baseline dated 2026-10-01  
@@ -287,12 +287,36 @@ CI/Security/release pipeline reproduces the acceptance evidence
 
 These are **not** retroactively marked complete by the v0.1.0 release:
 
-- [ ] dedicated dependency-license/source allow/deny policy;
+- [x] dependency-license/source allow/deny policy enforced by pinned `cargo-deny` in Security;
 - [ ] repository-level secret-scanning/push-protection configuration verified and evidenced;
 - [ ] branch/ruleset enforcement and required-check settings verified from repository administration;
 - [ ] independent encrypted source/release backup plus a tested restore drill.
 
 They are recorded in the gap register and next-actions document.
+
+---
+
+## 8A. v0.2.0 integrity/authenticity contract — **SATISFIED IN RELEASE CANDIDATE**
+
+v0.2.0 extends the v0.1.0 closed loop with cryptographic authorization and authenticated evidence manifests.
+
+Acceptance requires:
+
+- [x] canonical domain-separated Ed25519 signed envelope implementation;
+- [x] target, campaign, and evidence signer roles;
+- [x] validity-window and revocation enforcement;
+- [x] target/campaign minimum-revision rollback protection;
+- [x] signed envelope identity bound to target/campaign payload identity;
+- [x] campaign signed revision bound to `campaign_version`;
+- [x] evidence private key preflighted against trusted public key/role before network execution;
+- [x] signed run-bundle manifest;
+- [x] independent bundle verification;
+- [x] negative tests for tampering, wrong signer, expiry, revocation, role mismatch, rollback, identity mismatch, campaign revision mismatch, and file tampering;
+- [x] private-key create-new handling, Unix `0600` output, redacted debug representation, and zeroizing secret buffers/types;
+- [x] dependency license/source Security gate;
+- [ ] final exact-commit CI/Security/release attestation evidence recorded after publication.
+
+The release remains synthetic/LAB-only for key custody and target data. Production key custody and production target authorization remain separate gates.
 
 ---
 
