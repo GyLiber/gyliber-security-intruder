@@ -7,7 +7,7 @@
 **Owner:** GyLiber / GyLiber Engineering  
 **Companion application:** `GyLiber/gyliber-command-center`  
 **Source baseline:** [`docs/DESIGN.md`](DESIGN.md) — approved v1.0.0 baseline dated 2026-10-01  
-**Implementation checkpoint:** v0.1.0 released 2026-10-04 at commit `b98e0a29864c70db3abc9ed023d33446d426fb89`; this document continues to describe the architecture path to v1.0.0.  
+**Implementation checkpoint:** v0.1.0 released 2026-10-04; v0.2.0 release candidate on 2026-10-08 adds `intruder-signing`, signed target/campaign authorization, signed evidence manifests, and dependency license/source enforcement. This document continues to describe the architecture path to v1.0.0.  
 
 ---
 
@@ -726,6 +726,19 @@ The initial modular monolith may evolve into multiple services only when measura
 The stable contracts to preserve are target authorization, campaign schema, evidence schema, result taxonomy and security-event semantics—not any particular runtime topology.
 
 ---
+
+### v0.2.0 — Integrity and authenticity — **RELEASE CANDIDATE 2026-10-08**
+
+- Ed25519 signed-envelope crate;
+- trusted target/campaign/evidence signer roles;
+- validity, revocation and revision-floor checks;
+- signed target/campaign identity binding;
+- evidence-signer preflight before network side effects;
+- signed run-bundle manifests and independent verification;
+- key-management/client-demo operator documentation;
+- dependency license/source policy in Security.
+
+v0.2.0 deliberately does not arm hostname execution, authentication/session campaigns, broader API authorization testing, production Command Center targets, or production KMS/HSM custody.
 
 ## 21. Historical v0.1.0 implementation order
 

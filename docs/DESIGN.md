@@ -9,7 +9,7 @@
 **Companion system:** `GyLiber/gyliber-command-center`  
 **Security principle:** *Trust is demonstrated by controlled attempts to break the trust boundary, not by assuming the boundary works.*
 
-**Implementation checkpoint (2026-10-04):** v0.1.0 has been released. This document remains the approved **v1.0.0 product target**, not a claim that every capability described below is present in v0.1.0. The shipped v0.1.0 subset uses versioned but unsigned target/campaign documents, an IP-literal HTTP HEAD status probe, metadata-only evidence, and a constrained CLI. Signed authorization, authentication/session assurance, defense correlation, containment/recovery verification, and continuous scheduling remain later capability gates.
+**Implementation checkpoint (2026-10-08):** v0.1.0 has been released and v0.2.0 is the current release candidate. v0.2.0 implements signed target/campaign authorization, signer roles, validity/revocation/rollback checks, signed evidence manifests, and independent bundle verification while retaining the IP-literal HTTP HEAD safety scope. Authentication/session assurance, broader API authorization, defense correlation, containment/recovery verification, production key custody, and continuous scheduling remain later capability gates. This document remains the approved **v1.0.0 product target**, not a claim that every capability below is already present.
 
 ---
 
