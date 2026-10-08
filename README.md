@@ -2,7 +2,7 @@
 
 > Controlled adversarial security assurance for GyLiber-owned systems.
 
-**Release candidate:** v0.2.0 — integrity and authenticity  
+**Release:** v0.2.0 — integrity and authenticity  
 **Primary implementation language:** Rust  
 **License posture:** proprietary / all rights reserved until GyLiber adopts a different written license  
 **Authorization posture:** GyLiber-owned or explicitly authorized targets only
@@ -81,7 +81,7 @@ A syntactically valid document is no longer sufficient to authorize execution. T
 
 ## Current delivery status
 
-v0.2.0 is the current minor-release candidate. It retains the v0.1.0 closed-loop safety controls and adds:
+v0.2.0 is the current released minor version. It retains the v0.1.0 closed-loop safety controls and adds:
 
 - canonical domain-separated Ed25519 signed envelopes;
 - explicit target, campaign, and evidence signer roles;
