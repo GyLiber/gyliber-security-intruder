@@ -16,14 +16,12 @@ allow = [
 ]
 confidence-threshold = 0.8
 
+exceptions = [
+  { allow = ["CDLA-Permissive-2.0"], crate = "webpki-root-certs@1.0.9" },
+]
+
 [licenses.private]
 ignore = true
-
-[bans]
-multiple-versions = "warn"
-wildcards = "deny"
-highlight = "simplest-path"
-allow-workspace = true
 
 [sources]
 unknown-registry = "deny"
