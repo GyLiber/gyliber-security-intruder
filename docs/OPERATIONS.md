@@ -1,59 +1,176 @@
-# Operations — v0.1.0
+# Operations — v0.2.0
 
-GyLiber Security Intruder v0.1.0 is a constrained command-line security assurance tool. This document covers only the capabilities armed in the v0.1.0 release.
+GyLiber Security Intruder v0.2.0 is a constrained command-line security assurance tool for GyLiber-owned or explicitly authorized targets.
+
+v0.2.0 retains the v0.1.0 Target Gate, budgets, kill-switch, bounded HTTP HEAD probe, evidence sealing, and PASS/FAIL fixture proof, then adds cryptographic authorization and authenticated bundle manifests.
 
 ## Supported release platform
 
-The v0.1.0 binary release is built and tested for Linux x86_64 using the GNU userspace target. Other platforms may build from source but are not release-supported by v0.1.0.
+The prebuilt v0.2.0 release target is Linux x86_64 using the GNU userspace target.
 
-## Authorized-use boundary
+Other platforms may build from source but are not release-supported by v0.2.0.
 
-Use the Intruder only against GyLiber-owned systems or systems for which GyLiber has explicit authorization to perform the configured security testing. v0.1.0 is intentionally limited to synthetic/LAB-style baseline assurance. It is not an unrestricted scanner.
+## Data and authorization posture
 
-## Operator flow
+Use synthetic/security-test data only.
 
-Validate a target:
+Do not place production credentials, real staff/client data, banking information, production sessions, or private production topology in repository-controlled target/campaign material.
+
+A network run requires:
+
+- a signed target envelope;
+- a signed campaign envelope;
+- a trust policy authorizing the relevant signer roles;
+- a currently trusted evidence private key;
+- an explicit resolved kill-switch snapshot.
+
+## 1. Generate a LAB signing identity
+
+Use a private working directory outside the repository:
+
+```bash
+mkdir -p /tmp/gyliber-intruder-v020
+
+intruder key generate \
+  --key-id client-demo-authority \
+  --private-out /tmp/gyliber-intruder-v020/client-demo.signing-key.json \
+  --public-out /tmp/gyliber-intruder-v020/client-demo.public-key.json
+```
+
+Private-key output uses create-new semantics. On Unix it is created with mode `0600`.
+
+## 2. Bootstrap LAB trust
+
+```bash
+intruder trust bootstrap-lab \
+  --public-key /tmp/gyliber-intruder-v020/client-demo.public-key.json \
+  --target-id fixture-local \
+  --campaign-id baseline-health \
+  --out /tmp/gyliber-intruder-v020/trust-policy.json
+```
+
+The LAB bootstrap may assign target, campaign, and evidence roles to one key for demonstration. That is not the intended production key-separation model.
+
+## 3. Author and sign the target
+
+Unsigned target validation remains available while authoring:
 
 ```bash
 intruder target validate policies/lab/fixture-local.target.json
 ```
 
-Validate a campaign against that target:
+Sign it:
 
 ```bash
-intruder campaign validate   --target policies/lab/fixture-local.target.json   campaigns/baseline/fixture-health.campaign.json
+intruder target sign \
+  policies/lab/fixture-local.target.json \
+  --key /tmp/gyliber-intruder-v020/client-demo.signing-key.json \
+  --revision 1 \
+  --out /tmp/gyliber-intruder-v020/fixture-local.target.signed.json
 ```
 
-Inspect the non-executing plan:
+Verify it:
 
 ```bash
-intruder campaign plan   --target policies/lab/fixture-local.target.json   campaigns/baseline/fixture-health.campaign.json
+intruder target verify \
+  /tmp/gyliber-intruder-v020/fixture-local.target.signed.json \
+  --trust-policy /tmp/gyliber-intruder-v020/trust-policy.json
 ```
 
-Run an authorized campaign:
+## 4. Author and sign the campaign
 
 ```bash
-intruder run   --target policies/lab/fixture-local.target.json   --campaign campaigns/baseline/fixture-health.campaign.json   --kill-switch policies/lab/kill-switch-clear.json   --run-id example-run-001   --out-dir evidence/example-run-001
+intruder campaign validate \
+  --target policies/lab/fixture-local.target.json \
+  campaigns/baseline/fixture-health.campaign.json
 ```
 
-The example campaign references a local IP-literal endpoint. The operator is responsible for running an authorized fixture or service at the configured address and port.
+```bash
+intruder campaign sign \
+  --target policies/lab/fixture-local.target.json \
+  campaigns/baseline/fixture-health.campaign.json \
+  --key /tmp/gyliber-intruder-v020/client-demo.signing-key.json \
+  --out /tmp/gyliber-intruder-v020/fixture-health.campaign.signed.json
+```
 
-## Run bundle
+Verify both signed authorization documents:
 
-A successful run creates a new output directory containing `report.json`, `report.txt`, `run.json`, and `SHA256SUMS`. The output directory must not already exist. Individual files are also opened with create-new semantics.
+```bash
+intruder campaign verify \
+  --target /tmp/gyliber-intruder-v020/fixture-local.target.signed.json \
+  /tmp/gyliber-intruder-v020/fixture-health.campaign.signed.json \
+  --trust-policy /tmp/gyliber-intruder-v020/trust-policy.json
+```
 
-## Safety behavior
+## 5. Inspect the verified non-executing plan
 
-v0.1.0 requires versioned target and campaign documents plus an explicit kill-switch snapshot; enforces target scheme/host/path and resolved-address policy; enforces total/rate/concurrency/authentication/time budgets; performs only the armed `HTTP_HEAD_STATUS` probe; disables redirects, retries, ambient proxies, and hostname execution; and never persists response bodies or HTTP header values.
+```bash
+intruder campaign plan \
+  --target /tmp/gyliber-intruder-v020/fixture-local.target.signed.json \
+  /tmp/gyliber-intruder-v020/fixture-health.campaign.signed.json \
+  --trust-policy /tmp/gyliber-intruder-v020/trust-policy.json
+```
 
-## Evidence handling
+A successful plan states:
 
-Evidence is metadata-only in v0.1.0. SHA-256 sealing detects modification but does not prove signer identity. Digital signatures and signed target/campaign registries are planned for v0.2.0.
+```text
+authorization=SIGNED_VERIFIED
+execution=NOT_STARTED
+```
 
-## Kill-switch posture
+## 6. Execute an authorized LAB campaign
 
-`intruder kill-switch-status` reports unresolved state as `SAFE_DEFAULT_STOP`. Execution requires an explicit kill-switch snapshot file.
+The example campaign references a local IP-literal service at `127.0.0.1:8080/health`. An authorized local fixture/service must be running before this manual example is executed.
 
-## Recovery and preservation
+```bash
+intruder run \
+  --target /tmp/gyliber-intruder-v020/fixture-local.target.signed.json \
+  --campaign /tmp/gyliber-intruder-v020/fixture-health.campaign.signed.json \
+  --trust-policy /tmp/gyliber-intruder-v020/trust-policy.json \
+  --evidence-signing-key /tmp/gyliber-intruder-v020/client-demo.signing-key.json \
+  --kill-switch policies/lab/kill-switch-clear.json \
+  --run-id client-demo-001 \
+  --out-dir /tmp/gyliber-intruder-v020/client-demo-001
+```
 
-Source and tagged release artifacts are stored by GitHub. The release includes binary checksums, a CycloneDX SBOM, and GitHub artifact attestations. Before real confidential GyLiber evidence is admitted, a private independent backup/evidence store and tested restore procedure remain required.
+Evidence-signer trust is checked before the network request is allowed.
+
+## 7. Verify the emitted bundle independently
+
+```bash
+intruder bundle verify \
+  --dir /tmp/gyliber-intruder-v020/client-demo-001 \
+  --trust-policy /tmp/gyliber-intruder-v020/trust-policy.json
+```
+
+The verifier authenticates the signed manifest, verifies every manifested file digest, checks the checksum manifest, and rejects unexpected/non-regular bundle contents.
+
+## Fail-closed behavior
+
+v0.2.0 rejects, before or during verification as appropriate:
+
+- an untrusted signer;
+- a signer without the required role;
+- expired or not-yet-valid authorization;
+- authorization signed by a revoked key;
+- target/campaign revision below the trusted floor;
+- envelope identity that does not match the payload identity;
+- campaign envelope revision that does not match `campaign_version`;
+- a private evidence key that does not match the trusted public key;
+- a modified signed payload;
+- a modified evidence-bundle file;
+- unexpected files in a verified bundle.
+
+## Network safety retained from v0.1.0
+
+v0.2.0 still arms only `HTTP_HEAD_STATUS` on IP-literal targets. Redirects, automatic retries, ambient proxy inheritance, and hostname execution remain disabled. Private/special network ranges remain controlled by the Target Gate and environment policy.
+
+## Key custody boundary
+
+File-based private keys are a controlled LAB mechanism, not a production KMS/HSM claim.
+
+Before production/non-fixture authorization, GyLiber must select key custody, role ownership, backup, rotation, and emergency revocation procedures.
+
+## Release verification
+
+Release artifacts include SHA-256 checksums, CycloneDX SBOM, build-provenance attestation, and binary-SBOM attestation. The exact release commit must also pass normal CI, RustSec, dependency license/source policy, and CodeQL before publication.
