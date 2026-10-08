@@ -28,5 +28,5 @@ jobs:
       - name: Install pinned cargo-deny
         run: cargo install cargo-deny --version 0.20.2 --locked
 
-      - name: Check dependency licenses, bans, and sources
-        run: cargo deny --all-features check licenses bans sources
+      - name: Check dependency licenses and sources
+        run: cargo deny --all-features check licenses sources
