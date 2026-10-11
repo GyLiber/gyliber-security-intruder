@@ -877,6 +877,8 @@ mod tests {
     fn authentication_target_document(environment: Environment) -> TargetDocument {
         let mut document = target_document();
         document.target.environment = environment;
+        document.target.allow_private_networks =
+            matches!(environment, Environment::Lab | Environment::Staging);
         document.target.allowed_path_prefixes = vec!["/login".to_owned()];
         document
     }
