@@ -903,9 +903,10 @@ mod tests {
     }
 
     #[test]
-    fn synthetic_authentication_campaign_validates_in_lab()
-    -> Result<(), Box<dyn std::error::Error>> {
-        authentication_campaign()?.validate_against(&authentication_target_document(Environment::Lab))
+    fn synthetic_authentication_campaign_validates_in_lab() -> Result<(), Box<dyn std::error::Error>>
+    {
+        authentication_campaign()?
+            .validate_against(&authentication_target_document(Environment::Lab))
     }
 
     #[test]
@@ -1008,12 +1009,8 @@ mod tests {
             NOW + 1_000,
             &private,
         )?;
-        let verified = verify_signed_authentication_campaign(
-            &signed_campaign,
-            verified_target,
-            &trust,
-            NOW,
-        )?;
+        let verified =
+            verify_signed_authentication_campaign(&signed_campaign, verified_target, &trust, NOW)?;
 
         assert_eq!(verified.document().campaign_id, "synthetic-login");
         Ok(())
