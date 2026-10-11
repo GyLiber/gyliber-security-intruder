@@ -85,6 +85,11 @@ impl SafetyBudget {
                 "max_execution_seconds must be positive",
             ));
         }
+        if self.max_auth_attempts == 0 {
+            return Err(CoreError::InvalidBudget(
+                "max_auth_attempts must be positive",
+            ));
+        }
         Ok(())
     }
 }
@@ -292,6 +297,20 @@ mod tests {
             budget.validate(),
             Err(CoreError::InvalidBudget(
                 "max_total_requests must be positive"
+            ))
+        ));
+    }
+
+    #[test]
+    fn zero_auth_attempt_budget_is_rejected() {
+        let budget = SafetyBudget {
+            max_auth_attempts: 0,
+            ..SafetyBudget::production_baseline()
+        };
+        assert!(matches!(
+            budget.validate(),
+            Err(CoreError::InvalidBudget(
+                "max_auth_attempts must be positive"
             ))
         ));
     }

@@ -12,6 +12,7 @@ use url::Url;
 
 pub const TARGET_SCHEMA_VERSION: u16 = 1;
 pub const CAMPAIGN_SCHEMA_VERSION: u16 = 1;
+pub const AUTHENTICATION_CAMPAIGN_SCHEMA_VERSION: u16 = 1;
 
 /// Immutable logical target definition. Raw arbitrary URLs are not an execution interface.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -236,6 +237,214 @@ impl CampaignDocument {
     }
 }
 
+/// Expected authentication outcome for one synthetic authentication scenario.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum AuthenticationExpectedOutcome {
+    Authenticated,
+    Rejected,
+    LockedOut,
+}
+
+/// Reference to a synthetic actor and separately managed synthetic credential.
+///
+/// The campaign contract intentionally contains no username, password, token,
+/// cookie, or other credential value. Runtime credential resolution is a later
+/// adapter concern.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SyntheticIdentityRef {
+    pub actor_id: String,
+    pub credential_ref: String,
+}
+
+impl SyntheticIdentityRef {
+    /// Validate opaque synthetic-reference identifiers.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when a reference is empty, too long, or contains
+    /// characters outside the deliberately narrow identifier alphabet.
+    pub fn validate(&self) -> Result<(), PolicyError> {
+        validate_synthetic_reference("actor_id", &self.actor_id)?;
+        validate_synthetic_reference("credential_ref", &self.credential_ref)
+    }
+}
+
+/// Authentication probe kind armed by the v0.3.0 contract.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum AuthenticationProbeKind {
+    SyntheticLogin,
+}
+
+/// Strict configuration for one synthetic authentication scenario.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AuthenticationProbe {
+    pub kind: AuthenticationProbeKind,
+    pub candidate_url: Url,
+    pub identity: SyntheticIdentityRef,
+    pub attempts: u16,
+    pub expected_status: u16,
+    pub expected_outcome: AuthenticationExpectedOutcome,
+}
+
+/// Versioned synthetic authentication campaign.
+///
+/// This contract is authorization metadata only. It cannot carry raw
+/// credentials or session secrets and does not itself execute login traffic.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AuthenticationCampaignDocument {
+    pub schema_version: u16,
+    pub campaign_id: String,
+    pub campaign_version: u32,
+    pub target_id: String,
+    pub test_case_id: String,
+    pub probe: AuthenticationProbe,
+}
+
+impl AuthenticationCampaignDocument {
+    /// Validate a synthetic authentication campaign against an enrolled target.
+    ///
+    /// Authentication campaigns are initially armed only for LAB/STAGING. The
+    /// requested attempt count must fit inside the target's central
+    /// authentication-attempt budget.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for invalid schema/identity/attempt/outcome data,
+    /// production-like environments, target mismatch, budget overflow, or URL
+    /// escape from the enrolled target.
+    pub fn validate_against(&self, target: &TargetDocument) -> Result<(), PolicyError> {
+        target.validate()?;
+
+        if self.schema_version != AUTHENTICATION_CAMPAIGN_SCHEMA_VERSION {
+            return Err(PolicyError::UnsupportedAuthenticationCampaignSchemaVersion(
+                self.schema_version,
+            ));
+        }
+        if self.campaign_id.trim().is_empty() {
+            return Err(PolicyError::MissingCampaignId);
+        }
+        if self.campaign_version == 0 {
+            return Err(PolicyError::InvalidCampaignVersion);
+        }
+        if self.target_id.trim().is_empty() {
+            return Err(PolicyError::MissingCampaignTargetId);
+        }
+        if self.test_case_id.trim().is_empty() {
+            return Err(PolicyError::MissingTestCaseId);
+        }
+        if self.target_id != target.target.target_id {
+            return Err(PolicyError::CampaignTargetMismatch {
+                campaign_target_id: self.target_id.clone(),
+                enrolled_target_id: target.target.target_id.clone(),
+            });
+        }
+        if !matches!(
+            target.target.environment,
+            Environment::Lab | Environment::Staging
+        ) {
+            return Err(PolicyError::AuthenticationEnvironmentNotArmed(
+                target.target.environment,
+            ));
+        }
+
+        self.probe.identity.validate()?;
+
+        if self.probe.attempts == 0 {
+            return Err(PolicyError::InvalidAuthenticationAttemptCount);
+        }
+        if self.probe.attempts > target.target.budget.max_auth_attempts {
+            return Err(PolicyError::AuthenticationAttemptsExceedBudget {
+                requested: self.probe.attempts,
+                limit: target.target.budget.max_auth_attempts,
+            });
+        }
+        if self.probe.expected_outcome == AuthenticationExpectedOutcome::LockedOut
+            && self.probe.attempts < 2
+        {
+            return Err(PolicyError::LockoutRequiresMultipleAttempts);
+        }
+        if !(100..=599).contains(&self.probe.expected_status) {
+            return Err(PolicyError::InvalidExpectedHttpStatus(
+                self.probe.expected_status,
+            ));
+        }
+
+        target.target.authorize_url(&self.probe.candidate_url)
+    }
+}
+
+pub type SignedAuthenticationCampaignDocument = SignedEnvelope<AuthenticationCampaignDocument>;
+
+#[derive(Debug, Clone, Copy)]
+pub struct VerifiedAuthenticationCampaign<'a> {
+    document: &'a AuthenticationCampaignDocument,
+}
+
+impl<'a> VerifiedAuthenticationCampaign<'a> {
+    #[must_use]
+    pub const fn document(self) -> &'a AuthenticationCampaignDocument {
+        self.document
+    }
+}
+
+/// Verify a signed synthetic-authentication campaign against a verified target.
+///
+/// # Errors
+///
+/// Returns an error when signature trust, envelope identity/revision binding,
+/// synthetic-authentication policy, attempt budget, or target enrollment fails.
+pub fn verify_signed_authentication_campaign<'a>(
+    signed: &'a SignedAuthenticationCampaignDocument,
+    target: VerifiedTarget<'_>,
+    trust_policy: &TrustPolicy,
+    now_unix: u64,
+) -> Result<VerifiedAuthenticationCampaign<'a>, PolicyError> {
+    if signed.document_kind() != DocumentKind::Campaign {
+        return Err(PolicyError::SignedDocumentKindMismatch {
+            expected: DocumentKind::Campaign,
+            actual: signed.document_kind(),
+        });
+    }
+
+    verify_envelope(signed, trust_policy, now_unix, KeyRole::CampaignSigner)?;
+
+    let document = signed.payload();
+    if signed.document_id() != document.campaign_id {
+        return Err(PolicyError::SignedDocumentIdMismatch {
+            envelope_id: signed.document_id().to_owned(),
+            payload_id: document.campaign_id.clone(),
+        });
+    }
+    if signed.revision() != u64::from(document.campaign_version) {
+        return Err(PolicyError::SignedCampaignRevisionMismatch {
+            envelope_revision: signed.revision(),
+            campaign_version: document.campaign_version,
+        });
+    }
+
+    document.validate_against(target.document())?;
+    Ok(VerifiedAuthenticationCampaign { document })
+}
+
+fn validate_synthetic_reference(field: &'static str, value: &str) -> Result<(), PolicyError> {
+    let valid = !value.is_empty()
+        && value.len() <= 128
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.'));
+
+    if valid {
+        Ok(())
+    } else {
+        Err(PolicyError::InvalidSyntheticReference(field))
+    }
+}
+
 pub type SignedTargetDocument = SignedEnvelope<TargetDocument>;
 pub type SignedCampaignDocument = SignedEnvelope<CampaignDocument>;
 
@@ -361,6 +570,18 @@ pub enum PolicyError {
     UnsupportedTargetSchemaVersion(u16),
     #[error("unsupported campaign schema version: {0}")]
     UnsupportedCampaignSchemaVersion(u16),
+    #[error("unsupported authentication campaign schema version: {0}")]
+    UnsupportedAuthenticationCampaignSchemaVersion(u16),
+    #[error("synthetic reference is invalid: {0}")]
+    InvalidSyntheticReference(&'static str),
+    #[error("synthetic authentication campaigns are not armed for {0:?}")]
+    AuthenticationEnvironmentNotArmed(Environment),
+    #[error("authentication attempt count must be positive")]
+    InvalidAuthenticationAttemptCount,
+    #[error("authentication attempts {requested} exceed target budget {limit}")]
+    AuthenticationAttemptsExceedBudget { requested: u16, limit: u16 },
+    #[error("LOCKED_OUT expectation requires at least two bounded attempts")]
+    LockoutRequiresMultipleAttempts,
     #[error("campaign id is required")]
     MissingCampaignId,
     #[error("campaign version must be positive")]
@@ -653,6 +874,151 @@ mod tests {
         );
         Ok(())
     }
+    fn authentication_target_document(environment: Environment) -> TargetDocument {
+        let mut document = target_document();
+        document.target.environment = environment;
+        document.target.allow_private_networks =
+            matches!(environment, Environment::Lab | Environment::Staging);
+        document.target.allowed_path_prefixes = vec!["/login".to_owned()];
+        document
+    }
+
+    fn authentication_campaign() -> Result<AuthenticationCampaignDocument, url::ParseError> {
+        Ok(AuthenticationCampaignDocument {
+            schema_version: AUTHENTICATION_CAMPAIGN_SCHEMA_VERSION,
+            campaign_id: "synthetic-login".to_owned(),
+            campaign_version: 1,
+            target_id: "fixture-secure".to_owned(),
+            test_case_id: "synthetic-login-success".to_owned(),
+            probe: AuthenticationProbe {
+                kind: AuthenticationProbeKind::SyntheticLogin,
+                candidate_url: Url::parse("http://127.0.0.1/login")?,
+                identity: SyntheticIdentityRef {
+                    actor_id: "intruder-user-01".to_owned(),
+                    credential_ref: "fixture-good-password".to_owned(),
+                },
+                attempts: 1,
+                expected_status: 204,
+                expected_outcome: AuthenticationExpectedOutcome::Authenticated,
+            },
+        })
+    }
+
+    #[test]
+    fn synthetic_authentication_campaign_validates_in_lab() -> Result<(), Box<dyn std::error::Error>>
+    {
+        authentication_campaign()?
+            .validate_against(&authentication_target_document(Environment::Lab))?;
+        Ok(())
+    }
+
+    #[test]
+    fn synthetic_authentication_campaign_is_not_armed_for_production()
+    -> Result<(), Box<dyn std::error::Error>> {
+        assert_eq!(
+            authentication_campaign()?
+                .validate_against(&authentication_target_document(Environment::Production)),
+            Err(PolicyError::AuthenticationEnvironmentNotArmed(
+                Environment::Production
+            ))
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn authentication_attempts_cannot_exceed_target_budget()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let mut campaign = authentication_campaign()?;
+        campaign.probe.attempts = 4;
+        assert_eq!(
+            campaign.validate_against(&authentication_target_document(Environment::Lab)),
+            Err(PolicyError::AuthenticationAttemptsExceedBudget {
+                requested: 4,
+                limit: 3,
+            })
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn lockout_expectation_requires_multiple_bounded_attempts()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let mut campaign = authentication_campaign()?;
+        campaign.probe.expected_outcome = AuthenticationExpectedOutcome::LockedOut;
+        assert_eq!(
+            campaign.validate_against(&authentication_target_document(Environment::Lab)),
+            Err(PolicyError::LockoutRequiresMultipleAttempts)
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn authentication_campaign_json_rejects_raw_password_field() {
+        let source = r#"{
+            "schema_version": 1,
+            "campaign_id": "synthetic-login",
+            "campaign_version": 1,
+            "target_id": "fixture-secure",
+            "test_case_id": "synthetic-login-success",
+            "probe": {
+                "kind": "SYNTHETIC_LOGIN",
+                "candidate_url": "http://127.0.0.1/login",
+                "identity": {
+                    "actor_id": "intruder-user-01",
+                    "credential_ref": "fixture-good-password",
+                    "password": "must-not-be-here"
+                },
+                "attempts": 1,
+                "expected_status": 204,
+                "expected_outcome": "AUTHENTICATED"
+            }
+        }"#;
+
+        assert!(serde_json::from_str::<AuthenticationCampaignDocument>(source).is_err());
+    }
+
+    #[test]
+    fn signed_authentication_campaign_preserves_v0_2_trust_boundary()
+    -> Result<(), Box<dyn std::error::Error>> {
+        const NOW: u64 = 1_800_000_000;
+        let (private, public) = intruder_signing::generate_keypair("fixture-authority")?;
+        let mut trust = signing_trust(public);
+        trust.revision_floors.push(intruder_signing::RevisionFloor {
+            document_kind: intruder_signing::DocumentKind::Campaign,
+            document_id: "synthetic-login".to_owned(),
+            minimum_revision: 1,
+        });
+
+        let target = authentication_target_document(Environment::Lab);
+        let signed_target = intruder_signing::sign_envelope(
+            target,
+            intruder_signing::DocumentKind::Target,
+            "fixture-secure",
+            1,
+            NOW - 10,
+            NOW - 10,
+            NOW + 1_000,
+            &private,
+        )?;
+        let verified_target = verify_signed_target(&signed_target, &trust, NOW)?;
+
+        let signed_campaign = intruder_signing::sign_envelope(
+            authentication_campaign()?,
+            intruder_signing::DocumentKind::Campaign,
+            "synthetic-login",
+            1,
+            NOW - 10,
+            NOW - 10,
+            NOW + 1_000,
+            &private,
+        )?;
+        let verified =
+            verify_signed_authentication_campaign(&signed_campaign, verified_target, &trust, NOW)?;
+
+        assert_eq!(verified.document().campaign_id, "synthetic-login");
+        Ok(())
+    }
+
     fn signing_trust(public: intruder_signing::PublicKeyFile) -> intruder_signing::TrustPolicy {
         intruder_signing::TrustPolicy {
             schema_version: intruder_signing::TRUST_POLICY_SCHEMA_VERSION,

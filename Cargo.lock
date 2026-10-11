@@ -747,6 +747,7 @@ dependencies = [
  "intruder-core",
  "intruder-signing",
  "serde",
+ "serde_json",
  "thiserror",
  "url",
 ]
