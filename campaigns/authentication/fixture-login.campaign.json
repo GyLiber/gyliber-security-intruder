@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "campaign_id": "synthetic-login",
+  "campaign_version": 1,
+  "target_id": "fixture-auth",
+  "test_case_id": "synthetic-login-success",
+  "probe": {
+    "kind": "SYNTHETIC_LOGIN",
+    "candidate_url": "http://127.0.0.1:8081/login",
+    "identity": {
+      "actor_id": "intruder-user-01",
+      "credential_ref": "fixture-good-password"
+    },
+    "attempts": 1,
+    "expected_status": 204,
+    "expected_outcome": "AUTHENTICATED"
+  }
+}
