@@ -906,7 +906,8 @@ mod tests {
     fn synthetic_authentication_campaign_validates_in_lab() -> Result<(), Box<dyn std::error::Error>>
     {
         authentication_campaign()?
-            .validate_against(&authentication_target_document(Environment::Lab))
+            .validate_against(&authentication_target_document(Environment::Lab))?;
+        Ok(())
     }
 
     #[test]
